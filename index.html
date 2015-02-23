@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>p2p crypted chat OTR.to</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="Content-Language" content="en-us">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="fancy.css" rel="stylesheet" type="text/css">
+
+
+<!-- Stylesheet required to power RRSSB. Copy this css file to your header -->
+<link rel="stylesheet" href="css/rrssb.css"/>
+
+<link rel="icon" type="image/png" href="ico.ico"/>
+<script type="text/javascript" src="js/vendor/jquery.1.10.2.min.js"></script>
+<script type="text/javascript" src="peer.js"></script>
+<script src="build/dep/bigint.js"></script>
+<script src="build/dep/crypto.js"></script>
+<script src="build/dep/eventemitter.js"></script>
+<script src="build/otr.js"></script>
+<script src="js/rrssb.min.js"></script>
+<script>
+
+function SelectText(element) {
+    var doc = document;
+    var text = doc.getElementById(element);
+    if (doc.body.createTextRange) { // ms
+        var range = doc.body.createTextRange();
+        range.moveToElementText(text);
+        range.select();
+    } else if (window.getSelection) {
+        var selection = window.getSelection();
+        var range = doc.createRange();
+        range.selectNodeContents(text);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+    }
+}
+
+
+function nl2br(str, is_xhtml) {
+    var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';
+    return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
+}
+
+function htmlEncode(value) {
+    //create a in-memory div, set it's inner text(which jQuery automatically encodes)
+    //then grab the encoded contents back out.  The div never exists on the page.
+    return $('<div/>').text(value).html();
+}
+
+
+function eachActiveConnection(fn) {
+    var actives = $('.active');
+    var checkedIds = {};
+    actives.each(function () {
+        var peerId = $(this).attr('id');
+
+        if (!checkedIds[peerId]) {
+            var conns = peer.connections[peerId];
+            for (var i = 0, ii = conns.length; i < ii; i += 1) {
+                var conn = conns[i];
+                fn(conn, $(this));
+            }
+        }
+
+        checkedIds[peerId] = 1;
+    });
+}
+
+function formatFinger(str) {
+    var splitStringArray = str.split("");
+    var finalString = "";
+    var step = 0;
+    for (var i = 0; i < splitStringArray.length; i++) {
+        finalString += splitStringArray[i];
+        step++;
+        if (step == 8) {
+            finalString += " ";
+            step = 0;
+        }
+    }
+    return finalString;
+}
+
+
+function snobuddyOn(data) {
+    eachActiveConnection(function (c, $c) {
+        if (c.label === 'chat') {
+            //console.log(c.peer+":"+data);
+            //if(data != "-=pNg=-") {
+            if (data != '-=?OTR?=-') {
+                if (!isMute) {
+                    $('#chatAudio')[0].play();
+                }
+                nMessages += 1;
+                $c.find('.messages').append('<div><span class="peer">' + c.peer + '</span>: ' + nl2br(htmlEncode(data)) + '</div>');
+                if (!isFocus) {
+                    flashTitle("(" + nMessages + ") " + dTitle, 100000000);
+                }
+                //$(document).prop('title',"("+nMessages+") "+dTitle);
+            }
+            else {
+                $('#otron').trigger('click');
+            }
+            //}
+            //else {
+            //firstPng = true;
+            //lastPng = (new Date()).getTime();
+            //}
+        }
+        //if(firstPng && !isStarted) {
+    });
+}
+
+function sbuddyOn(data) {
+    //console.log("OTHER OTR:" + data);
+    buddy.receiveMsg(data);
+    if (firstPng && isStarted && !isFinger) {
+        //$('.filler').hide();
+        //$('#'+c.peer).show();
+        //$('#send').show();
+        //isStarted = true;
+        var yfinger = (buddy.priv.fingerprint()).toUpperCase();
+        var bfinger = (buddy.their_priv_pk.fingerprint()).toUpperCase();
+        $('#yfinger').text(formatFinger(yfinger));
+        $('#bfinger').text(formatFinger(bfinger));
+        $('#bsend').attr("disabled", false);
+        $('#bsend').css('background-color','#629007');
+        $('#bsend').css('border','1px solid #588500');
+        $('#bsend').css('color','#fff');
+        $('#bsend').css('cursor','pointer');
+        $('#auth').show();
+        $('#waitotr').hide();
+        isFinger = true;
+        //console.log("isFinger True");
+    }
+}
+
+(function () {
+
+    var original = document.title;
+    var timeout;
+
+    window.flashTitle = function (newMsg, howManyTimes) {
+        function step() {
+            document.title = (document.title == original) ? newMsg : original;
+
+            if (--howManyTimes > 0) {
+                timeout = setTimeout(step, 1000);
+            }
+            ;
+        };
+
+        howManyTimes = parseInt(howManyTimes);
+
+        if (isNaN(howManyTimes)) {
+            howManyTimes = 5;
+        }
+        ;
+
+        cancelFlashTitle(timeout);
+        step();
+    };
+
+    window.cancelFlashTitle = function () {
+        clearTimeout(timeout);
+        document.title = original;
+    };
+
+}());
+
+
+if (window.location.hash) {
+    hash = window.location.hash.substring(1);
+} else {
+    hash = '';
+}
+
+
+dTitle = $(document).find("title").text();
+
+nMessages = 0;
+
+
+var chrome, chrome1, turn;
+var is_chrome = window.chrome;
+if (is_chrome) {
+    chrome = window.navigator.appVersion.match(/Chrom(e|ium)\/(\d+)\./)[2];
+}
+if (chrome) {
+    chrome1 = parseInt(chrome, 10);
+}
+else {
+    chrome1 = 0;
+}
+//turn = {url: 'turn:turn@46.165.240.76:3479', credential: 'server'};
+//if (chrome1 >= 28) {
+turn = { url: 'turn:46.165.240.76:3478', credential: 'asperTinO1', username: 'otrto' };
+//}
+
+
+var peer = new Peer('', {
+            host: 'otr.to',
+            port: 9000, path: '/',
+            key: 'peerjs',
+            debug: 0,
+            secure: true,
+            logFunction: function () {
+                var copy = Array.prototype.slice.call(arguments).join(' ');
+                $('.log').append(copy + '<br>');
+            },
+            config: {'iceServers': [
+                {url: 'stun:stun.l.google.com:19302'},
+                {url: 'stun:stun1.l.google.com:19302'},
+                {url: 'stun:stun2.l.google.com:19302'},
+                {url: 'stun:stun3.l.google.com:19302'},
+                {url: 'stun:stun4.l.google.com:19302'},
+                {url: 'stun:stun.ekiga.net'},
+                {url: 'stun:stun.ideasip.com'},
+                {url: 'stun:stun.rixtelecom.se'},
+                {url: 'stun:stun.schlund.de'},
+                {url: 'stun:stun.stunprotocol.org:3478'},
+                {url: 'stun:stun.voiparound.com'},
+                {url: 'stun:stun.voipbuster.com'},
+                {url: 'stun:stun.voipstunt.com'},
+                {url: 'stun:stun.voxgratia.org'},
+                {url: 'stun:46.165.240.76:3478'},
+                turn
+            ]}
+        }
+);
+
+var buddy, intervalId;
+var isBuddyOn = false;
+var connectedPeers = 0;
+var isConnected = false;
+var isBuddy = false;
+var isMute = false;
+var isFocus = true;
+var isFinger = false;
+var lastPng = 0;
+var firstPng = false;
+var isStarted = false;
+var dTitle = $(document).find("title").text();
+var nMessages = 0;
+var prevError = '';
+
+
+//OTR
+
+//var myKey = new DSA();
+
+var start = (new Date()).getTime();
+
+
+// Show this peer's ID.
+peer.on('open', function (id) {
+    $('#pid').text(id);
+    $('#purl').text("https://otr.to/#" + id);
+    $(function () {
+        $("#pid").click(function () {
+            SelectText("pid");
+        });
+    });
+    $(function () {
+        $("#purl").click(function () {
+            SelectText("purl");
+        });
+    });
+});
+
+// Await connections from others
+peer.on('connection', connect);
+
+peer.on('error', function (err) {
+    $('#logg').append('<font color="red"><strong>' + err + '. Type:' + err.type + '</strong></font><br>');
+});
+
+
+// Handle a connection object.
+function connect(c) {
+    $('.filler').html('<img src="loader.gif"><br> connecting...');
+
+    // Handle a chat connection.
+    var chatbox = $('<div></div>').addClass('connection').addClass('active').attr('id', c.peer);
+    var header = $('<h1></h1>').html('Chat with <strong>' + c.peer + '</strong>');
+    var messages = $('<div><em>Peer connected.</em></div>').addClass('messages');
+
+    chatbox.append(header);
+    chatbox.append(messages);
+    $('#idid').hide();
+    $('#urlid').hide();
+    $('#connid').hide();
+    $('#connections').append(chatbox);
+    $('#' + c.peer).hide();
+    //$('#logg').append('isBuddy:'+isBuddy+'<br>'+'isBuddyOn:'+isBuddyOn+'<br>');
+    connectedPeers = 1;
+
+    /*intervalId = setInterval(function() {
+     c.send("-=pNg=-");
+     if(isStarted) {
+     var nowT = (new Date()).getTime() - lastPng;
+     //$('#logg').append("Last Ping:" + nowT + '<br>');
+     if (nowT > 32000) {
+     $('#logg').append('<div><span>SYSTEM</span>: Last Ping:' + nowT  +'ms ago</div>');
+     }
+     }
+     }, 15000);*/
+
+    //console.log("isStarted:"+isStarted);
+    if (!isStarted) {
+        $('.filler').hide();
+        $('#' + c.peer).show();
+        $('#send').show();
+        isStarted = true;
+    }
+    c.on('data', snobuddyOn);
+
+    c.on('close', function () {
+        clearInterval(intervalId);
+        $('#text').hide();
+        $('#tarea').html('<font color="red"><strong>' + c.peer + ' has left the chat.</strong></font><br>Close this window to remove all data.<br>');
+
+        //alert(c.peer + ' has left the chat.');
+        //chatbox.remove();
+        //if ($('.connection').length === 0) {
+        //    $('.filler').show();
+        //}
+        //connectedPeers = 0;
+        //window.location.href = "https://otr.to/";
+    });
+
+
+    //setInterval(function() {
+    //		$('#logg').append('messages:'+nMessages+'<br>'+'isBuddy:'+isBuddy+'<br>');
+    //	}, 8000);
+    //setInterval(function() {
+    //		$('#logg').append('ConnectedPeers:'+connectedPeers+'<br>'+'isBuddy:'+isBuddy+'<br>'+'firstPng:'+firstPng+'<br>'+'isStarted:'+isStarted+'<br>');
+    //	}, 8000);
+}
+
+
+$(document).ready(function () {
+    //Check browser
+    //var brows = util.browser;
+    //$('#logg').append('Browser:'+brows+'<br>');
+    if (util.supports.data) {
+        //$('#logg').append('Your browser supports peeer-to-peer connection<br>');
+    }
+    else {
+        $('#logg').append('<font color="red"><strong>Error: Your browser does not support peeer-to-peer connection</strong></font><br>');
+    }
+
+    // Connect to a peer
+    $('#connect').on("click", function () {
+        $('.filler').html('<img src="loader.gif"><br> connecting...');
+        requestedPeer = $('#rid').val();
+        if (connectedPeers == 0 && !isConnected) {
+            // Create 2 connections, one labelled chat and another labelled file.
+            var c = peer.connect(requestedPeer, {
+                label: 'chat',
+                serialization: 'none',
+                reliable: false,
+                metadata: {message: 'hi i want to chat with you!'}
+            });
+            c.on('open', function () {
+                connect(c);
+            });
+            c.on('error', function (err) {
+                        //alert(err);
+                        var thisErr = err;
+                        if (thisErr != prevError) {
+                            $('#logg').append('<font color="red"><strong>' + err + '</strong></font><br>');
+                        }
+                        prevError = thisErr;
+                        clearInterval(intervalId);
+                    }
+            );
+            //buddy.sendMsg("hi i want to chat with you!");
+            isConnected = true;
+            connectedPeers = 1;
+            $('#idid').hide();
+            $('#urlid').hide();
+            $('#connid').hide();
+        }
+    });
+
+    $('#text').keydown(function (e) {
+        if (e.which == 13 && e.ctrlKey) {
+            $('#text').val($('#text').val() + "\n");
+            return false;
+        }
+        if (e.which == 13) {
+            $('#send').trigger("submit");
+            return false;
+        }
+    });
+
+    $('#rid').keydown(function (e) {
+        if (e.which == 13) {
+            $('#connect').trigger("click");
+            return false;
+        }
+    });
+
+    // Close a connection.
+    $('#close').click(function () {
+        eachActiveConnection(function (c) {
+            c.close();
+        });
+    });
+
+
+    $('#send').on("submit", function (e) {
+        e.preventDefault();
+
+        // For each active connection, send the message.
+        var msg = $('#text').val();
+        if (isBuddy) {
+            buddy.sendMsg(msg);
+        }
+        else {
+            eachActiveConnection(function (c) {
+                //console.log("YOU:"+msg);
+                c.send(msg);
+            });
+        }
+        eachActiveConnection(function (c, $c) {
+            if (c.label === 'chat') {
+                $c.find('.messages').append('<div><span class="you">You: </span>' + nl2br(htmlEncode(msg)) + '</div>');
+            }
+        });
+        $('#text').val('');
+        $('#text').focus();
+    });
+
+    // Goes through each active peer and calls FN on its connections.
+
+
+    // Show browser version
+    $('#browsers').text(navigator.userAgent);
+
+    if (hash) {
+        $('#rid').val(hash);
+        $('#connect').trigger("click");
+        hash = false;
+    }
+
+
+    $(window).on("focus", function () {
+        nMessages = 0;
+        cancelFlashTitle();
+        $(document).prop('title', dTitle);
+        isFocus = true;
+    });
+
+    $(window).on("blur", function () {
+        isFocus = false;
+    });
+
+
+    $('#sound').on('click', function () {
+        if (!isMute) {
+            isMute = true;
+
+        }
+        else {
+            isMute = false;
+
+        }
+    });
+
+    $('#otron').on('click', function () {
+        //clearInterval(intervalId);
+        if (!isBuddyOn) {
+            $('#bsend').attr("disabled", true);
+            $('#bsend').css('background-color','#a7a39f');
+            $('#bsend').css('border','1px solid #000');
+            $('#bsend').css('color','#000');
+            $('#bsend').css('cursor','not-allowed');
+            //setTimeout(function(){
+            //$('#ae1').html('<img src="486.gif">');
+            //},0);
+            $('#waitotr').show();
+            isBuddyOn = true;
+            eachActiveConnection(function (c) {
+                c.send('-=?OTR?=-');
+                c.off('data', snobuddyOn);
+            });
+
+            if (!isBuddy) {
+                //setTimeout(function () {
+                buddy = new OTR(
+                        {
+                            fragment_size: 140, send_interval: 200, priv: new DSA(), debug: false
+                        }
+                );
+                buddy.REQUIRE_ENCRYPTION = true;
+                buddy.on('ui', function (msg, encrypted) {
+                    eachActiveConnection(function (c, $c) {
+                        if (c.label === 'chat') {
+                            if (msg != "-=pNg=-") {
+                                var subMsg = msg.substr(0, 5);
+                                //console.log(subMsg);
+                                if (subMsg != '?OTR:') {
+                                    if (!isMute) {
+                                        $('#chatAudio')[0].play();
+                                    }
+                                    nMessages += 1;
+                                    $c.find('.messages').append('<div><span class="peer">' + c.peer + '</span>: ' + nl2br(htmlEncode(msg)) + '</div>');
+                                    if (!isFocus) {
+                                        flashTitle("(" + nMessages + ") " + dTitle, 100000000);
+                                    }
+                                    //$(document).prop('title',"("+nMessages+") "+dTitle);
+                                }
+                            }
+                            else {
+                                firstPng = true;
+                                lastPng = (new Date()).getTime();
+                            }
+                        }
+                    });
+                });
+
+                buddy.on('io', function (msg, meta) {
+                    eachActiveConnection(function (c, $c) {
+                        if (c.label === 'chat') {
+
+                            //console.log("YOU OTR:" + msg);
+                            c.send(msg);
+                            //$c.find('.messages').append('<div><span class="you">You: </span>' + msg + '</div>');
+                        }
+                    });
+                    //console.log("message to send to buddy: " + msg);
+                    //console.log("(optional) with sendMsg attached meta data: " + meta);
+                });
+
+                buddy.on('error', function (err, severity) {
+                    if (severity === 'error')  // either 'error' or 'warn'
+                        console.log("error occurred: " + err);
+                });
+
+                buddy.on('status', function (state) {
+                    if (state === OTR.CONST.STATUS_AKE_SUCCESS) {
+                        //console.log('<br />ake took <strong>' + ((new Date()).getTime() - start) + 'ms</strong>');
+                        //console.log('<br />message state is ' + (buddy.msgstate ? 'encrypted' : 'plaintext') + '</strong>');
+                    }
+                });
+                isBuddy = true;
+                intervalId = setInterval(function () {
+                    buddy.sendMsg("-=pNg=-");
+                    if (isStarted) {
+                        var nowT = (new Date()).getTime() - lastPng;
+                        //$('#logg').append("Last Ping:" + nowT + '<br>');
+                        if (nowT > 16000) {
+                            //  $c.find('.messages').append('<div><span class="peer">SYSTEM</span>: Last Ping:' + nowT  +'ms ago</div>');
+                        }
+                    }
+                }, 5000);
+
+                //console.log("isBuddy true");
+                eachActiveConnection(function (c) {
+                    c.on('data', sbuddyOn);
+                });
+                $('otron').prop('disabled', true);
+                //$('#ae1').html('<input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="otron" checked disabled><label class="onoffswitch-label" for="otron"><span class="onoffswitch-inner"></span><span class="onoffswitch-switch"></span></label>');
+                //console.log("buddy is on");
+                //}, 1000);
+            }
+        }
+        //else {
+        //    isBuddyOn = false;
+        //}
+    });
+
+
+    $('textarea')
+            .focus(function () {
+                $(this).css("background", "#fff")
+            })
+            .blur(function () {
+                if ($(this)[0].value == '') {
+                    $(this).css("background", "url(be.jpg) center center no-repeat")
+                }
+            });
+
+});
+
+// Make sure things clean up properly.
+
+window.onunload = window.onbeforeunload = function (e) {
+    if (!!peer && !peer.destroyed) {
+        peer.destroy();
+    }
+};
+
+</script>
+</head>
+
+<body> <br>
+<br>
+<center><ul class="tabs">
+ <li class="ttab logo"><img src="logo.png"> </li>
+    <li class="ttab selected"><a class="non" href="https://otr.to/">Secure p2p Chat</a></li>
+    <li class="ttab"><a class="non" href="https://otr.to/s/">Self Destructing Message</a></li>
+    <li class="ttab"><a  class="non" href="https://otr.to/contact.html">Contact Us</a></li>
+
+</ul><div class="line">  <br> <br></div><br><br>
+
+    <div id="actions"><span id="connid">To start chat enter someone else's id: <input id="rid" placeholder="someone"
+                                                                                      type="text" size="7"><input
+            class="button" value="Connect" id="connect" type="button">&nbsp;&nbsp;</span>
+        <br> <span id="idid">or send your id:<span id="pid"></span> &nbsp;</span>
+        <span id="urlid">or url:<span id="purl"></span> &nbsp;&nbsp;</span></div>
+
+    <div id="wrap">
+        <div id="connections"><span class="filler"><div class="about">
+            <ul>
+                <li>Otr.to - p2p chat, that mean you communicate directly, no logs saved on server</li>
+                <li>Otr.to absolutely anonymous, registration free</li>
+                <li>Otr.to browser based, that mean you don't need to install or ask somebody to install software</li>
+                <li>Otr.to use OTR (Off-the-Record Messaging) - most secure cryptographic protocol</li>
+                <li>Otr.to written in JavaScript, that mean you can check how it works</li>
+            </ul>
+        </div><br></span>
+
+            <div id="logg"></div>
+        </div>
+        <form id="send" style="display:none;">
+            <div id="tarea">
+                <textarea id="text" style="width:100%; height:80px; max-width: 500px;" placeholder="type your message here..."></textarea>
+            </div>
+            <br>
+            <table style="width:400px">
+                <tr>
+                    <td>sound<br>
+
+                        <div class="onoffswitch" id="ae">
+                            <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="sound" checked>
+                            <label class="onoffswitch-label" for="sound">
+                                <span class="onoffswitch-inner"></span>
+                                <span class="onoffswitch-switch"></span>
+                            </label>
+                        </div>
+                    </td>
+                    <td>encryption<br>
+
+                        <div class="onoffswitch" id="ae1">
+                            <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="otron">
+                            <label class="onoffswitch-label" for="otron">
+                                <span class="onoffswitch-inner"></span>
+                                <span class="onoffswitch-switch"></span>
+                            </label>
+                        </div>
+                    </td>
+                    <td>
+                        <input type="button" type="submit" value="open new chat"
+                               onClick="window.open('https://otr.to/');">
+                    </td>
+                    <td><input class="button" value="Send" type="submit" id="bsend"></td>
+                </tr>
+                <tr>
+                    <td>&nbsp;</td>
+                    <td><img src="486.gif" style="display:none;" id="waitotr"></td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+            </table>
+			<p style="gray"> enter - send message | ctr+enter - new line</p>
+        </form>
+        <br>
+
+        <div class="clear"></div>
+</center>
+<div id="content">
+    <div id="auth" style="display:none;">
+
+        <table style="width:600px">
+            <tr>
+                <td>Your Fingerprint:</td>
+                <td><span id="yfinger"></span></td>
+            </tr>
+            <tr>
+                <td>Buddy Fingerprint:</td>
+                <td><span id="bfinger"></span></td>
+            </tr>
+        </table>
+    </div>
+
+</div>
+
+</div>
+
+
+</div>
+<audio id="chatAudio">
+    <source src="waterdrop.mp3" type="audio/mpeg">
+</audio>
+
+ </center>
+<div id="footer">
+    <center>
+        <div style="max-width:700px">
+            <p><a href=about.html>about otr.to</a> &nbsp;&nbsp; <a href=contact.html>contact us</a> &nbsp; if u like
+                otr.to, share it: </p>
+
+            <ul class="rrssb-buttons clearfix">
+                <li class="rrssb-email">
+                    <a href="mailto:?subject=&body=:%20http%3A%2F%2Fotr.to%2F" target="_blank" title="Email"
+                       onclick="window.open('mailto:?subject=' + encodeURIComponent(document.title) + '&body=' +  encodeURIComponent(document.URL)); return false;"><i
+                            id="social" class="fa fa-envelope-square fa-3x social-em"></i>
+            <span class="rrssb-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve"><g><path d="M20.111 26.147c-2.336 1.051-4.361 1.401-7.125 1.401c-6.462 0-12.146-4.633-12.146-12.265 c0-7.94 5.762-14.833 14.561-14.833c6.853 0 11.8 4.7 11.8 11.252c0 5.684-3.194 9.265-7.399 9.3 c-1.829 0-3.153-0.934-3.347-2.997h-0.077c-1.208 1.986-2.96 2.997-5.023 2.997c-2.532 0-4.361-1.868-4.361-5.062 c0-4.749 3.504-9.071 9.111-9.071c1.713 0 3.7 0.4 4.6 0.973l-1.169 7.203c-0.388 2.298-0.116 3.3 1 3.4 c1.673 0 3.773-2.102 3.773-6.58c0-5.061-3.27-8.994-9.303-8.994c-5.957 0-11.175 4.673-11.175 12.1 c0 6.5 4.2 10.2 10 10.201c1.986 0 4.089-0.43 5.646-1.245L20.111 26.147z M16.646 10.1 c-0.311-0.078-0.701-0.155-1.207-0.155c-2.571 0-4.595 2.53-4.595 5.529c0 1.5 0.7 2.4 1.9 2.4 c1.441 0 2.959-1.828 3.311-4.087L16.646 10.068z"/></g></svg>
+            </span>
+                        <span class="rrssb-text">email</span>
+                    </a>
+                </li>
+                <li class="rrssb-facebook">
+                    <a href="https:/<a href=" https://www.facebook.com/sharer/sharer.php?u=http%3A%2F%2Fotr.to%2F&t="
+                    target="_blank" onclick="window.open('https://www.facebook.com/sharer/sharer.php?u=' +
+                    encodeURIComponent(document.URL) + '&t=' + encodeURIComponent(document.URL)); return false;">
+
+            <span class="rrssb-icon">
+                <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve">
+                    <path d="M27.825,4.783c0-2.427-2.182-4.608-4.608-4.608H4.783c-2.422,0-4.608,2.182-4.608,4.608v18.434
+                        c0,2.427,2.181,4.608,4.608,4.608H14V17.379h-3.379v-4.608H14v-1.795c0-3.089,2.335-5.885,5.192-5.885h3.718v4.608h-3.726
+                        c-0.408,0-0.884,0.492-0.884,1.236v1.836h4.609v4.608h-4.609v10.446h4.916c2.422,0,4.608-2.188,4.608-4.608V4.783z"/>
+                </svg>
+            </span>
+                    <span class="rrssb-text">facebook</span>
+                    </a>
+                </li>
+                <li class="rrssb-twitter">
+                    <a href="https://twitter.com/intent/tweet?source=http%3A%2F%2Fotr.to%2F&text=:%20http%3A%2F%2Fotr.to%2F"
+                       target="_blank" title="Tweet"
+                       onclick="window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(document.title) + ':%20'  + encodeURIComponent(document.URL)); return false;">
+           <span class="rrssb-icon">
+                <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                     width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve">
+                <path d="M24.253,8.756C24.689,17.08,18.297,24.182,9.97,24.62c-3.122,0.162-6.219-0.646-8.861-2.32
+                    c2.703,0.179,5.376-0.648,7.508-2.321c-2.072-0.247-3.818-1.661-4.489-3.638c0.801,0.128,1.62,0.076,2.399-0.155
+                    C4.045,15.72,2.215,13.6,2.115,11.077c0.688,0.275,1.426,0.407,2.168,0.386c-2.135-1.65-2.729-4.621-1.394-6.965
+                    C5.575,7.816,9.54,9.84,13.803,10.071c-0.842-2.739,0.694-5.64,3.434-6.482c2.018-0.623,4.212,0.044,5.546,1.683
+                    c1.186-0.213,2.318-0.662,3.329-1.317c-0.385,1.256-1.247,2.312-2.399,2.942c1.048-0.106,2.069-0.394,3.019-0.851
+                    C26.275,7.229,25.39,8.196,24.253,8.756z"/>
+                </svg>
+            </span>
+                        <span class="rrssb-text">twitter</span>
+                    </a>
+                </li>
+                <li class="rrssb-googleplus">
+                    <!-- Replace href with your meta and URL information.  -->
+                    <a href="https://plus.google.com/share?url=http%3A%2F%2Fotr.to%2F" target="_blank"
+                       title="Share on Google+"
+                       onclick="window.open('https://plus.google.com/share?url=' + encodeURIComponent(document.URL)); return false;"><i
+                            id="social" class="fa fa-google-plus-square fa-3x social-gp"></i>
+	                            <span class="rrssb-icon">
+                                <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve">
+                                    <g>
+                                        <g>
+                                            <path d="M14.703,15.854l-1.219-0.948c-0.372-0.308-0.88-0.715-0.88-1.459c0-0.748,0.508-1.223,0.95-1.663
+                                                c1.42-1.119,2.839-2.309,2.839-4.817c0-2.58-1.621-3.937-2.399-4.581h2.097l2.202-1.383h-6.67c-1.83,0-4.467,0.433-6.398,2.027
+                                                C3.768,4.287,3.059,6.018,3.059,7.576c0,2.634,2.022,5.328,5.604,5.328c0.339,0,0.71-0.033,1.083-0.068
+                                                c-0.167,0.408-0.336,0.748-0.336,1.324c0,1.04,0.551,1.685,1.011,2.297c-1.524,0.104-4.37,0.273-6.467,1.562
+                                                c-1.998,1.188-2.605,2.916-2.605,4.137c0,2.512,2.358,4.84,7.289,4.84c5.822,0,8.904-3.223,8.904-6.41
+                                                c0.008-2.327-1.359-3.489-2.829-4.731H14.703z M10.269,11.951c-2.912,0-4.231-3.765-4.231-6.037c0-0.884,0.168-1.797,0.744-2.511
+                                                c0.543-0.679,1.489-1.12,2.372-1.12c2.807,0,4.256,3.798,4.256,6.242c0,0.612-0.067,1.694-0.845,2.478
+                                                c-0.537,0.55-1.438,0.948-2.295,0.951V11.951z M10.302,25.609c-3.621,0-5.957-1.732-5.957-4.142c0-2.408,2.165-3.223,2.911-3.492
+                                                c1.421-0.479,3.25-0.545,3.555-0.545c0.338,0,0.52,0,0.766,0.034c2.574,1.838,3.706,2.757,3.706,4.479
+                                                c-0.002,2.073-1.736,3.665-4.982,3.649L10.302,25.609z"/>
+                                            <polygon points="23.254,11.89 23.254,8.521 21.569,8.521 21.569,11.89 18.202,11.89 18.202,13.604 21.569,13.604 21.569,17.004
+                                                23.254,17.004 23.254,13.604 26.653,13.604 26.653,11.89      "/>
+                                        </g>
+                                    </g>
+                                </svg>
+                            </span>
+                        <span class="rrssb-text">google+</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </center>
+
+</div>
+</div>
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+    (function (d, w, c) {
+        (w[c] = w[c] || []).push(function () {
+            try {
+                w.yaCounter28005159 = new Ya.Metrika({id: 28005159,
+                    trackLinks: true,
+                    accurateTrackBounce: true});
+            } catch (e) {
+            }
+        });
+
+        var n = d.getElementsByTagName("script")[0],
+                s = d.createElement("script"),
+                f = function () {
+                    n.parentNode.insertBefore(s, n);
+                };
+        s.type = "text/javascript";
+        s.async = true;
+        s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js";
+
+        if (w.opera == "[object Opera]") {
+            d.addEventListener("DOMContentLoaded", f, false);
+        } else {
+            f();
+        }
+    })(document, window, "yandex_metrika_callbacks");
+</script>
+<noscript>
+    <div><img src="//mc.yandex.ru/watch/28005159" style="position:absolute; left:-9999px;" alt=""/></div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+</body>
+</html>

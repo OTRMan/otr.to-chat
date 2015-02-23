@@ -1,0 +1,319 @@
+html{
+height:100%;}
+
+body {
+height:100%;
+height: auto !important;
+min-height:100%;
+position:relative;
+  padding: 0;
+  margin: 0;
+  font-family: Arial;
+  background-color: #F6F5F2;
+  color: #444;
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+.gray{color:gray; font-size: 0.3em;}
+
+    .onoffswitch {
+    position: relative; width: 40px;
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+    }
+    .onoffswitch-checkbox {
+    display: none;
+    }
+    .onoffswitch-label {
+    display: block; overflow: hidden; cursor: pointer;
+    border: 2px solid #333333; border-radius: 3px;
+    }
+    .onoffswitch-inner {
+    display: block; width: 200%; margin-left: -100%;
+    -moz-transition: margin 0.3s ease-in 0s; -webkit-transition: margin 0.3s ease-in 0s;
+    -o-transition: margin 0.3s ease-in 0s; transition: margin 0.3s ease-in 0s;
+    }
+
+	
+	
+    .onoffswitch-inner:before, .onoffswitch-inner:after {
+    display: block; float: left; width: 50%; height: 15px; padding: 0; line-height: 12px;
+    font-size: 10px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
+    -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
+    border: 0px;
+    background-clip: padding-box;
+    }
+    .onoffswitch-inner:before {
+    content: "on";
+    padding-left: 5px;
+    background-color: #4DB348; color: #FFFFFF;
+    }
+    .onoffswitch-inner:after {
+    content: "off";
+    padding-right: 5px;
+    background-color: #C95645; color: #FFFFFF;
+    text-align: right;
+    }
+    .onoffswitch-switch {
+    display: block; width: 15px; margin: 0px;
+    background: #333333;
+	border-radius: 3px;
+    position: absolute; top: 0; bottom: 0; right: 25px;
+    -moz-transition: all 0.3s ease-in 0s; -webkit-transition: all 0.3s ease-in 0s;
+    -o-transition: all 0.3s ease-in 0s; transition: all 0.3s ease-in 0s;
+    }
+    .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+    }
+    .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px;
+    }
+.connection, .connection.active, .mess {
+
+  min-height: 250px;
+  height: auto;
+  max-width: 500px;
+  width: 100%;
+  background-color: #fff;
+  padding: 10px;
+  margin: 0px;
+  border: 1px solid #ccc;
+overflow: hidden;
+}
+.connection div {
+  margin: 0px;
+  text-align: left;
+}
+
+h1 {
+  font-size: 1.2em;
+  padding: 5px 10px;
+  margin: 0 -10px 0 -10px;
+  border-bottom: 1px solid #ccc;
+  font-weight: 300;
+}
+.active h1 strong {
+  color: #FF7500;
+}
+.file, em {
+  color: #999;
+  font-style: italic;
+}
+
+.clear {
+  clear: both;
+}
+.peer {
+  color: #B02C14;
+  font-weight: 600;
+}
+.you {
+  color: #629007;
+  font-weight: 600;
+}
+#pid,#purl {font-size: 1.3em;
+  display: inline-block;
+  padding: 0px;
+  padding-left: 3px;
+  padding-right: 3px;
+  margin:4px;
+  border: 1px solid #ccc;
+  line-height: 1.3em;
+  background-color: #fff;
+  text-align: left;
+}
+span{font-size: 1.3em;}
+.warning {
+  font-size: 0.8em;
+  line-height: 20px;
+  padding: 10px;
+  background-color: #333;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.4);
+  font-weight: 300;
+  border-width: 1px 0;
+  border-color: #000;
+  border-style: solid;
+}
+a {
+  color: #fff;
+}
+.filler {
+  display: block;
+  padding: 10px;
+}
+#actions {
+  padding: 10px;
+}
+
+textarea ,{ 
+  
+ height: 100px;
+    background-color: #fff;
+  padding: 10px;
+  margin: 2px;
+  border: 1px solid #ccc;
+  width:100%; 
+}
+
+button, input, textarea {
+  font-size: 1em;
+  font-family: Arial;
+  border: 1px solid #ccc;
+  padding: 5px;
+  background: #fff;
+  margin: 0;
+  color: #444;
+border-radius: 3px;
+}
+input:focus {
+  outline: none;
+}
+.button, button {
+  cursor: pointer;
+  background-color: #629007;
+  border: 1px solid #588500;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+
+}
+
+#close {
+  background-color: #D84120;
+  border-color: #A4250F;
+  color: #fff;
+
+}
+
+.important {
+  font-size: 1.2em;
+  color: #F2C777;
+  margin-bottom: 10px;
+}
+.textwrapper
+{
+    border:1px solid #999999;
+    margin:5px 0;
+    padding:3px;
+}
+
+
+#footer {  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+ font-weight: 600; 
+ color: #FFF;
+ font-size: 1.4em; 
+height:6em;
+line-height: 1.2em;
+position:absolute;
+bottom:0;
+left:0;
+right:0;
+	    background-color: #BAB8AF;
+
+box-shadow: 0px 13px 50px -19px #756C68 inset;
+vertical-align: middle;
+text-align: center;
+}
+.share-buttons{
+	list-style: none;
+}
+
+.share-buttons li{
+	display: inline;
+}
+@media screen and (-webkit-min-device-pixel-ratio:0) { 
+  select:focus,
+  textarea:focus,
+  input:focus {
+    font-size: 16px;
+    background: #eee;
+  }
+}
+#wrap {
+padding-bottom: 6em;
+}
+ #header {
+}
+#content {
+padding:10px;
+padding-bottom:2.5em;
+}
+.about{
+border-radius: 2px;
+
+box-sizing: border-box;
+margin: 2em auto;
+padding: 2em;
+max-width: 700px;
+min-width: 280px;
+width: 100%;
+background-color: #FBFBFB;
+border: #D4D4D4 1px solid;
+text-align: left;}
+.ab{
+border-radius: 2px;
+box-sizing: border-box;
+margin: 0.3em ;
+padding: 0.2em;
+background-color: #FEFEFE;
+border: #D4D4D4 1px solid;}
+
+.tabs {
+ 
+    font-size: 0px;
+    margin: 0px;
+    padding: 0px 0px 0px 20px;
+    list-style-type: none;
+}
+.ttab {
+    padding: 0px 10px;
+    display: inline-block;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 32px;
+
+    background: none repeat scroll 0% 0% #F1F1F1;
+    outline: medium none;
+    border-width: 2px 2px medium;
+    border-style: solid solid none;
+    border-color: #D4D4D4;
+    -moz-border-top-colors: none;
+    -moz-border-right-colors: none;
+    -moz-border-bottom-colors: none;
+    -moz-border-left-colors: none;
+    border-image: none;
+    border-radius: 5px 5px 0px 0px;
+    position: relative;
+    transition: border-color 0.3s linear 0s;
+	margin-left: 3px;
+}
+
+.selected{
+    color: #333;
+    font-weight: bold;
+    border-color: #D4D4D4;
+  background-color: #F6F5F2;
+  z-index: 3;
+}
+.logo{
+ display: inline-block;
+    border-color: #F6F5F2;
+  background-color: #F6F5F2;
+ 
+ 
+}
+.non {    text-decoration: none;
+    color: #333;}
+.line {
+    border-width: 2px medium medium;
+    border-image: none;
+    border-radius: 0px;
+    position: relative;
+    padding: 0px;
+    margin: -2px 0px 0px;
+    outline: medium none;
+    border-color: #D4D4D4;
+    border-style: solid none none;
+	max-width: 800px;
+width: 100%;  background-color: #F6F5F2;
+}

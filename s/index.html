@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Self Destructing Encrypted Message </title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="Content-Language" content="en-us">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/fancy.css" rel="stylesheet" type="text/css">
+
+
+    <!-- Stylesheet required to power RRSSB. Copy this css file to your header -->
+    <link rel="stylesheet" href="/css/rrssb.css"/>
+
+    <link rel="icon" type="image/png" href="/ico.ico"/>
+    <script type="text/javascript" src="/js/vendor/jquery.1.10.2.min.js"></script>
+    <script type="text/javascript" src="/rollups/aes.js"></script>
+    <script type="text/javascript" src="/components/enc-base64-min.js"></script>
+    <script type="text/javascript" src="/rollups/sha256.js"></script>
+    <script type="text/javascript" src="animatedcollapse.js"></script>
+	<script src="/js/rrssb.min.js"></script>
+    <script>
+
+        function SelectText(element) {
+            var doc = document;
+            var text = doc.getElementById(element);
+            if (doc.body.createTextRange) { // ms
+                var range = doc.body.createTextRange();
+                range.moveToElementText(text);
+                range.select();
+            } else if (window.getSelection) {
+                var selection = window.getSelection();
+                var range = doc.createRange();
+                range.selectNodeContents(text);
+                selection.removeAllRanges();
+                selection.addRange(range);
+
+            }
+        }
+        function passwordGen(limit) {
+            limit = limit || 8;
+
+            var password = '';
+
+            var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:;><!"$%&/()=?^*#_-@+[]{}|,.';
+
+            var list = chars.split('');
+            var len = list.length, i = 0;
+
+            do {
+
+                i++;
+
+                var index = Math.floor(Math.random() * len);
+
+                password += list[index];
+
+            } while (i < limit);
+
+            return password;
+        }
+        function replaceURLWithHTMLLinks(text) {
+            var exp = /(\b(https?|ftp|file|mailto|bitcoin|callto|ed2k|git|gtalk|irc|irc6|ircs|jabber|magnet|market|skype|tel):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+            return text.replace(exp, "<a href='$1' target='_blank' style='color:blue;'>$1</a>");
+        }
+        function nl2br(str, is_xhtml) {
+            var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';
+            return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
+        }
+        function htmlEncode(value) {
+            //create a in-memory div, set it's inner text(which jQuery automatically encodes)
+            //then grab the encoded contents back out.  The div never exists on the page.
+            return $('<div/>').text(value).html();
+        }
+        $(document).ready(function () {
+            $('#purl').click(function() {
+                SelectText("purl");
+            });
+            $('#purl1').click(function() {
+                SelectText("purl1");
+            });
+            $('#passw').click(function() {
+                SelectText("passw");
+            });
+            var askPos = window.location.href.indexOf('?');
+            if (askPos > 0) {
+                var hashes = window.location.href.slice(askPos + 1).split('#');
+                if (hashes[0] != '') {
+                    $('#wrap1').hide('slow');
+                    $.post(
+                            "s.php",
+                            {
+                                id: hashes[0]
+                            }
+                    ).done(function (data) {
+                                if (data != '') {
+                                    if (hashes[1]) {
+                                        var parsedWordArray = CryptoJS.enc.Base64.parse(hashes[1]);
+                                        var isPass = parsedWordArray.toString(CryptoJS.enc.Utf8);
+                                        $('#password1').val(isPass);
+                                    }
+                                    $('#pid').text(data);
+                                    $('#content1').show('slow');
+                                }
+                            })
+                            .error(function () {
+                                alert("error");
+                            });
+                }
+            }
+            $('#decode').click(function () {
+                var isPass = $('#password1').val();
+                var decodeTxt = CryptoJS.AES.decrypt($('#pid').text(), isPass).toString(CryptoJS.enc.Utf8);
+                var unBase = CryptoJS.enc.Base64.parse(decodeTxt);
+                var toStr = unBase.toString(CryptoJS.enc.Utf8);
+                $('#pid').html(replaceURLWithHTMLLinks(nl2br(htmlEncode(toStr))));
+            });
+            $('#regen').click(function () {
+                $('#password').val(passwordGen(12));
+            });
+            $('#encrypt').click(function () {
+                var nText = '';
+                var isPass = '';
+                $('#encrypt').attr("disabled", true);
+                nText = $('#text').val();
+                isPass = $('#password').val();
+                var perLine = $('#perline').prop('checked');
+                var isBurn = $('#burn').prop('checked');
+                var isExpired = $('#expired').val();
+                isExpired = isExpired * 60;
+                if (perLine) {
+                    var myArray = nText.split("\n");
+                    var newArray = [];
+                    for (var i = 0; i < myArray.length; i++) {
+                        var words = CryptoJS.enc.Utf8.parse(myArray[i]);
+                        var base64 = CryptoJS.enc.Base64.stringify(words);
+                        newArray[i] = CryptoJS.AES.encrypt(base64, isPass);
+                    }
+                    var plain = newArray.join('[||]');
+                }
+                else {
+                    var words = CryptoJS.enc.Utf8.parse(nText);
+                    var base64 = CryptoJS.enc.Base64.stringify(words);
+                    var encTxt = CryptoJS.AES.encrypt(base64, isPass);
+                    var plain = encTxt.toString();
+                }
+                $('#text').val(plain);
+                $.post(
+                        "s.php",
+                        {
+                            toenc: plain,
+                            burn: isBurn,
+                            perline: perLine,
+                            expired: isExpired
+                        }
+                ).done(function (data) {
+                            if (data != '') {
+                                var urlsTxt = '';
+                                var urlsWoPass = '';
+                                $('#wrap1').hide('slow');
+                                var words = CryptoJS.enc.Utf8.parse($('#password').val());
+                                var base64 = CryptoJS.enc.Base64.stringify(words);
+                                if ($('#perline').prop('checked')) {
+                                    var myArray = data.split("|");
+
+                                    for (var i = 0; i < myArray.length; i++) {
+
+                                        urlsTxt += 'https://otr.to/s/?' + myArray[i] + '#' + base64 + "<br>";
+                                        urlsWoPass += 'https://otr.to/s/?' + myArray[i] + "<br>";
+                                    }
+                                }
+                                else {
+                                    urlsTxt += 'https://otr.to/s/?' + data + '#' + base64 + "<br>";
+                                    urlsWoPass += 'https://otr.to/s/?' + data + "<br>";
+                                }
+                                $('#purl').html(urlsTxt);
+                                $('#purl1').html(urlsWoPass);
+                                $('#passw').html(isPass);
+                                $('#content').show('slow');
+                            }
+                        })
+                        .error(function () {
+                            alert("error");
+                        });
+
+            });
+            $('#password').val(passwordGen(12));
+        });
+    </script>
+
+    <script type="text/javascript">
+        animatedcollapse.addDiv('jason', 'fade=1,height=420px')
+        animatedcollapse.init()
+    </script>
+</head>
+
+<body>
+<br>
+<br>
+<center>
+
+  
+<ul class="tabs">
+ <li class="ttab logo"><img src="logo.png"> </li>
+    <li class="ttab"><a class="non" href="https://otr.to/">Secure p2p Chat</a></li>
+    <li class="ttab selected"><a class="non" href="https://otr.to/s/">Self Destructing Message</a></li>
+    <li class="ttab"><a  class="non" href="https://otr.to/contact.html">Contact Us</a></li>
+
+</ul><div class="line">  <br> <br></div>
+
+    <div id="wrap">
+        <div id="wrap1">
+            <form id="send">
+                <span class="ab">  Delete after reading <input type="checkbox" name="burn" value="1" id="burn"
+                                                               checked> </span>
+            <span class="ab">   Expiration time:<select name="expired" id="expired">
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="30">30 min</option>
+                <option value="60">1 hour</option>
+                <option value="1440">1 day</option>
+                <option value="10080" selected>1 week</option>
+                <option value="43200">1 month</option>
+                <option value="518400">1 year</option>
+            </select> </span>
+
+                <span class="ab"> create message for every new line <input type="checkbox" name="perline" id="perline"
+                                                                           value="1"> </span>
+            <br> <br>
+            <textarea name="toenc" id="text" style="width:100%; height:80px; max-width: 900px;"
+                      placeholder="type your message here..."></textarea><br>
+            password:<input type="text" name="password" size="30" value="" id="password"> <input value="generate new"
+                                                                                                 type="button"
+                                                                                                 id="regen"> &nbsp
+            <input class="button" value="create message" type="button" id="encrypt">
+        </form>
+
+            <div class="about" onClick="javascript:animatedcollapse.toggle('jason');" style="cursor:pointer">
+                <span><b> How it works >> </b></span>
+
+                <div id="jason" style="display:none">
+                    <span> Create message and get link to it. When link get opened, message will self-destruct.
+                     <br> Otr.to encrypt message on browser side, using Javascript with AES256 algorithm. Key (password) will never transmitted to the server.
+                     Server will store only encrypted data. You can send password with link, or separate.</span><BR><BR><BR>
+                    <center><img src="/how.png"></center>
+                </div>
+
+                <br>
+            </div>
+        </div>
+        <div id="content" style="display: none">
+   
+           url:
+        <span id="purl" style="text-align: left"> </span> <br>
+            url  without password:
+        <span id="purl1"
+              style="text-align: left;display: inline-block;padding: 0px;padding-left: 3px;padding-right: 3px;margin:4px;border: 1px solid #ccc;line-height: 1.3em;background-color: #fff">
+
+        </span>
+		     password:
+        <span id="passw"
+              style="text-align: left;display: inline-block;padding: 0px;padding-left: 3px;padding-right: 3px;margin:4px;border: 1px solid #ccc;line-height: 1.3em;background-color: #fff">
+        </span>
+        </div>
+        <div id="content1" style="display: none">
+            Enter Password:
+            <input type="text" name="password1" id="password1"> <input class="button" value="Decode Secret"
+                                                                       type="button" id="decode"><br>
+        <span id="pid" class="mess" style="max-width:700px">
+
+        </span>
+        </div>
+    </div>
+</center>
+<br><br><br>
+
+<div id="footer">
+    <center>
+        <div style="max-width:700px">
+            <p><a href=about.html>about otr.to</a> &nbsp;&nbsp; <a href=contact.html>contact us</a> &nbsp; if u like
+                otr.to, share it: </p>
+
+            <ul class="rrssb-buttons clearfix">
+                <li class="rrssb-email">
+                    <a href="mailto:?subject=&body=:%20http%3A%2F%2Fotr.to%2F" target="_blank" title="Email"
+                       onclick="window.open('mailto:?subject=' + encodeURIComponent(document.title) + '&body=' +  encodeURIComponent(document.URL)); return false;"><i
+                            id="social" class="fa fa-envelope-square fa-3x social-em"></i>
+            <span class="rrssb-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve"><g><path d="M20.111 26.147c-2.336 1.051-4.361 1.401-7.125 1.401c-6.462 0-12.146-4.633-12.146-12.265 c0-7.94 5.762-14.833 14.561-14.833c6.853 0 11.8 4.7 11.8 11.252c0 5.684-3.194 9.265-7.399 9.3 c-1.829 0-3.153-0.934-3.347-2.997h-0.077c-1.208 1.986-2.96 2.997-5.023 2.997c-2.532 0-4.361-1.868-4.361-5.062 c0-4.749 3.504-9.071 9.111-9.071c1.713 0 3.7 0.4 4.6 0.973l-1.169 7.203c-0.388 2.298-0.116 3.3 1 3.4 c1.673 0 3.773-2.102 3.773-6.58c0-5.061-3.27-8.994-9.303-8.994c-5.957 0-11.175 4.673-11.175 12.1 c0 6.5 4.2 10.2 10 10.201c1.986 0 4.089-0.43 5.646-1.245L20.111 26.147z M16.646 10.1 c-0.311-0.078-0.701-0.155-1.207-0.155c-2.571 0-4.595 2.53-4.595 5.529c0 1.5 0.7 2.4 1.9 2.4 c1.441 0 2.959-1.828 3.311-4.087L16.646 10.068z"/></g></svg>
+            </span>
+                        <span class="rrssb-text">email</span>
+                    </a>
+                </li>
+                <li class="rrssb-facebook">
+                    <a href="https://www.facebook.com/sharer/sharer.php?u=http%3A%2F%2Fotr.to%2F&t="
+                       target="_blank" onclick="window.open('https://www.facebook.com/sharer/sharer.php?u=' +
+                    encodeURIComponent(document.URL) + '&t=' + encodeURIComponent(document.URL)); return false;">
+
+            <span class="rrssb-icon">
+                <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve">
+                    <path d="M27.825,4.783c0-2.427-2.182-4.608-4.608-4.608H4.783c-2.422,0-4.608,2.182-4.608,4.608v18.434
+                        c0,2.427,2.181,4.608,4.608,4.608H14V17.379h-3.379v-4.608H14v-1.795c0-3.089,2.335-5.885,5.192-5.885h3.718v4.608h-3.726
+                        c-0.408,0-0.884,0.492-0.884,1.236v1.836h4.609v4.608h-4.609v10.446h4.916c2.422,0,4.608-2.188,4.608-4.608V4.783z"/>
+                </svg>
+            </span>
+                        <span class="rrssb-text">facebook</span>
+                    </a>
+                </li>
+                <li class="rrssb-twitter">
+                    <a href="https://twitter.com/intent/tweet?source=http%3A%2F%2Fotr.to%2F&text=:%20http%3A%2F%2Fotr.to%2F"
+                       target="_blank" title="Tweet"
+                       onclick="window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(document.title) + ':%20'  + encodeURIComponent(document.URL)); return false;">
+           <span class="rrssb-icon">
+                <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                     width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve">
+                <path d="M24.253,8.756C24.689,17.08,18.297,24.182,9.97,24.62c-3.122,0.162-6.219-0.646-8.861-2.32
+                    c2.703,0.179,5.376-0.648,7.508-2.321c-2.072-0.247-3.818-1.661-4.489-3.638c0.801,0.128,1.62,0.076,2.399-0.155
+                    C4.045,15.72,2.215,13.6,2.115,11.077c0.688,0.275,1.426,0.407,2.168,0.386c-2.135-1.65-2.729-4.621-1.394-6.965
+                    C5.575,7.816,9.54,9.84,13.803,10.071c-0.842-2.739,0.694-5.64,3.434-6.482c2.018-0.623,4.212,0.044,5.546,1.683
+                    c1.186-0.213,2.318-0.662,3.329-1.317c-0.385,1.256-1.247,2.312-2.399,2.942c1.048-0.106,2.069-0.394,3.019-0.851
+                    C26.275,7.229,25.39,8.196,24.253,8.756z"/>
+                </svg>
+            </span>
+                        <span class="rrssb-text">twitter</span>
+                    </a>
+                </li>
+                <li class="rrssb-googleplus">
+                    <!-- Replace href with your meta and URL information.  -->
+                    <a href="https://plus.google.com/share?url=http%3A%2F%2Fotr.to%2F" target="_blank"
+                       title="Share on Google+"
+                       onclick="window.open('https://plus.google.com/share?url=' + encodeURIComponent(document.URL)); return false;"><i
+                            id="social" class="fa fa-google-plus-square fa-3x social-gp"></i>
+	                            <span class="rrssb-icon">
+                                <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve">
+                                    <g>
+                                        <g>
+                                            <path d="M14.703,15.854l-1.219-0.948c-0.372-0.308-0.88-0.715-0.88-1.459c0-0.748,0.508-1.223,0.95-1.663
+                                                c1.42-1.119,2.839-2.309,2.839-4.817c0-2.58-1.621-3.937-2.399-4.581h2.097l2.202-1.383h-6.67c-1.83,0-4.467,0.433-6.398,2.027
+                                                C3.768,4.287,3.059,6.018,3.059,7.576c0,2.634,2.022,5.328,5.604,5.328c0.339,0,0.71-0.033,1.083-0.068
+                                                c-0.167,0.408-0.336,0.748-0.336,1.324c0,1.04,0.551,1.685,1.011,2.297c-1.524,0.104-4.37,0.273-6.467,1.562
+                                                c-1.998,1.188-2.605,2.916-2.605,4.137c0,2.512,2.358,4.84,7.289,4.84c5.822,0,8.904-3.223,8.904-6.41
+                                                c0.008-2.327-1.359-3.489-2.829-4.731H14.703z M10.269,11.951c-2.912,0-4.231-3.765-4.231-6.037c0-0.884,0.168-1.797,0.744-2.511
+                                                c0.543-0.679,1.489-1.12,2.372-1.12c2.807,0,4.256,3.798,4.256,6.242c0,0.612-0.067,1.694-0.845,2.478
+                                                c-0.537,0.55-1.438,0.948-2.295,0.951V11.951z M10.302,25.609c-3.621,0-5.957-1.732-5.957-4.142c0-2.408,2.165-3.223,2.911-3.492
+                                                c1.421-0.479,3.25-0.545,3.555-0.545c0.338,0,0.52,0,0.766,0.034c2.574,1.838,3.706,2.757,3.706,4.479
+                                                c-0.002,2.073-1.736,3.665-4.982,3.649L10.302,25.609z"/>
+                                            <polygon points="23.254,11.89 23.254,8.521 21.569,8.521 21.569,11.89 18.202,11.89 18.202,13.604 21.569,13.604 21.569,17.004
+                                                23.254,17.004 23.254,13.604 26.653,13.604 26.653,11.89      "/>
+                                        </g>
+                                    </g>
+                                </svg>
+                            </span>
+                        <span class="rrssb-text">google+</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </center>
+
+</div>
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+    (function (d, w, c) {
+        (w[c] = w[c] || []).push(function () {
+            try {
+                w.yaCounter28005159 = new Ya.Metrika({id: 28005159,
+                    trackLinks: true,
+                    accurateTrackBounce: true});
+            } catch (e) {
+            }
+        });
+
+        var n = d.getElementsByTagName("script")[0],
+                s = d.createElement("script"),
+                f = function () {
+                    n.parentNode.insertBefore(s, n);
+                };
+        s.type = "text/javascript";
+        s.async = true;
+        s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js";
+
+        if (w.opera == "[object Opera]") {
+            d.addEventListener("DOMContentLoaded", f, false);
+        } else {
+            f();
+        }
+    })(document, window, "yandex_metrika_callbacks");
+</script>
+<noscript>
+    <div><img src="//mc.yandex.ru/watch/28005159" style="position:absolute; left:-9999px;" alt=""/></div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+</body>
+</html>

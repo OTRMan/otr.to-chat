@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Encrypt Secret Information with OTR.to</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="Content-Language" content="en-us">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/fancy.css" rel="stylesheet" type="text/css">
+
+
+    <!-- Stylesheet required to power RRSSB. Copy this css file to your header -->
+    <link rel="stylesheet" href="/css/rrssb.css"/>
+
+    <link rel="icon" type="image/png" href="/ico.ico"/>
+    <script type="text/javascript" src="/js/vendor/jquery.1.10.2.min.js"></script>
+    <script type="text/javascript" src="/rollups/aes.js"></script>
+    <script type="text/javascript" src="/components/enc-base64-min.js"></script>
+    <script type="text/javascript" src="/rollups/sha256.js"></script>
+    <script>
+
+
+        function passwordGen(limit) {
+                limit = limit || 8;
+
+                var password = '';
+
+                var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:;><!"$%&/()=?^*#_-@+[]{}|,.';
+
+                var list = chars.split('');
+                var len = list.length, i = 0;
+
+                do {
+
+                    i++;
+
+                    var index = Math.floor(Math.random() * len);
+
+                    password += list[index];
+
+                } while(i < limit);
+
+                return password;
+        }
+        function replaceURLWithHTMLLinks(text) {
+            var exp = /(\b(https?|ftp|file|mailto|bitcoin|callto|ed2k|git|gtalk|irc|irc6|ircs|jabber|magnet|market|skype|tel):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+            return text.replace(exp,"<a href='$1' target='_blank' style='color:blue;'>$1</a>");
+        }
+        function nl2br(str, is_xhtml) {
+            var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';
+            return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
+        }
+        function htmlEncode(value) {
+            //create a in-memory div, set it's inner text(which jQuery automatically encodes)
+            //then grab the encoded contents back out.  The div never exists on the page.
+            return $('<div/>').text(value).html();
+        }
+        $(document).ready(function() {
+            var askPos = window.location.href.indexOf('?');
+            if(askPos > 0) {
+                var hashes = window.location.href.slice(askPos + 1).split('#');
+                if(hashes[0]!='') {
+                    $('#wrap').hide('slow');
+                    $.post(
+                            "s.php",
+                            {
+                                id: hashes[0]
+                            }
+                    ).done(function(data) {
+                        if(data != '') {
+                            if(hashes[1]) {
+                                var parsedWordArray = CryptoJS.enc.Base64.parse(hashes[1]);
+                                var isPass = parsedWordArray.toString(CryptoJS.enc.Utf8);
+                                $('#password1').val(isPass);
+                            }
+                            $('#pid').text(data);
+                            $('#content1').show('slow');
+                        }
+                    })
+                    .error(function() { alert("error"); });
+                }
+            }
+            $('#decode').click(function() {
+                var isPass = $('#password1').val();
+                var decodeTxt = CryptoJS.AES.decrypt($('#pid').text(), isPass).toString(CryptoJS.enc.Utf8);
+                var unBase = CryptoJS.enc.Base64.parse(decodeTxt);
+                var toStr = unBase.toString(CryptoJS.enc.Utf8);
+                $('#pid').html(replaceURLWithHTMLLinks(nl2br(htmlEncode(toStr))));
+            });
+            $('#regen').click(function() {
+               $('#password').val(passwordGen(12));
+            });
+            $('#encrypt').click(function() {
+                var nText = '';
+                var isPass = '';
+                $('#encrypt').attr("disabled", true);
+                nText = $('#text').val();
+                isPass = $('#password').val();
+                var perLine = $('#perline').prop('checked');
+                var isBurn = $('#burn').prop('checked');
+                var isExpired = $('#expired').val();
+                isExpired = isExpired * 60;
+                if(perLine) {
+                    var myArray = nText.split("\n");
+                    var newArray = [];
+                    for(var i = 0;i<myArray.length;i++) {
+                        var words = CryptoJS.enc.Utf8.parse(myArray[i]);
+                        var base64  = CryptoJS.enc.Base64.stringify(words);
+                        newArray[i] = CryptoJS.AES.encrypt(base64, isPass);
+                    }
+                    var plain = newArray.join('[||]');
+                }
+                else {
+                    var words = CryptoJS.enc.Utf8.parse(nText);
+                    var base64  = CryptoJS.enc.Base64.stringify(words);
+                    var encTxt = CryptoJS.AES.encrypt(base64, isPass);
+                    var plain = encTxt.toString();
+                }
+                $('#text').val(plain);
+                $.post(
+                        "s.php",
+                        {
+                            toenc: plain,
+                            burn: isBurn,
+                            perline: perLine,
+                            expired: isExpired
+                        }
+                ).done(function(data) {
+                    if(data != '') {
+                        var urlsTxt = '';
+                        var urlsWoPass = '';
+                        $('#wrap').hide('slow');
+                        var words = CryptoJS.enc.Utf8.parse($('#password').val());
+                        var base64  = CryptoJS.enc.Base64.stringify(words);
+                        if($('#perline').prop('checked')) {
+                            var myArray = data.split("|");
+
+                            for(var i = 0;i<myArray.length;i++) {
+
+                                urlsTxt+='https://otr.to/s/?'+myArray[i]+'#'+base64+"<br>";
+                                urlsWoPass+='https://otr.to/s/?'+myArray[i]+"<br>";
+                            }
+                        }
+                        else {
+                            urlsTxt+='https://otr.to/s/?'+data+'#'+base64+"<br>";
+                            urlsWoPass+='https://otr.to/s/?'+data+"<br>";
+                        }
+                        $('#purl').html(urlsTxt);
+                        $('#purl1').html(urlsWoPass);
+                        $('#passw').html(isPass);
+                        $('#content').show('slow');
+                    }
+                })
+                .error(function() { alert("error"); });
+
+            });
+            $('#password').val(passwordGen(12));
+        });
+    </script>
+</head>
+
+<body>
+<br>
+<br>
+<center>
+    <a href="https://otr.to/s/"> <img src="/logo.png"></a>
+    <br>
+    <br>
+    <div id="wrap">
+        <form id="send">
+            <input type="checkbox" name="burn" value="1" id="burn" checked> Delete after reading<br>
+            <select name="expired" id="expired">
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="30">30 min</option>
+                <option value="60">1 hour</option>
+                <option value="1440">1 day</option>
+                <option value="10080" selected>1 week</option>
+                <option value="43200">1 month</option>
+                <option value="518400">1 year</option>
+            </select> Expiration time
+            <br>
+            <input type="checkbox" name="perline" id="perline" value="1"> Every line to new url<br>
+            <input type="text" name="password" size="30" value="" id="password"> Custom password <input class="button" value="Regenerate" type="button" id="regen"><br>
+            <textarea name="toenc" rows="20" cols="70" id="text"></textarea><br>
+            <input class="button" value="Encrypt" type="button" id="encrypt">
+        </form>
+    </div>
+    <div id="content" style="display: none">
+        Your Password:
+        <span id="passw" style="text-align: left;display: inline-block;padding: 0px;padding-left: 3px;padding-right: 3px;margin:4px;border: 1px solid #ccc;line-height: 1.3em;background-color: #fff">
+        </span><br>
+        Your Url(s):
+        <span id="purl" style="text-align: left">
+
+        </span>
+        Url(s) Without Password:
+        <span id="purl1" style="text-align: left;display: inline-block;padding: 0px;padding-left: 3px;padding-right: 3px;margin:4px;border: 1px solid #ccc;line-height: 1.3em;background-color: #fff">
+
+        </span>
+    </div>
+    <div id="content1" style="display: none">
+        Enter Password:
+        <input type="text" name="password1" id="password1"> <input class="button" value="Decode Secret" type="button" id="decode"><br>
+        <span id="pid" style="text-align: left">
+
+        </span>
+    </div>
+</center>
+</body>
+</html>
