@@ -429,7 +429,7 @@ $(document).ready(function () {
         }
         eachActiveConnection(function (c, $c) {
             if (c.label === 'chat') {
-                var messageBox = $c.find('.messages')
+                var messageBox = $c.find('.messages');
                 messageBox.append('<div><span class="you">You: </span>' + nl2br(htmlEncode(msg)) + '</div>');
                 messageBox.scrollTop(messageBox[0].scrollHeight);
             }
@@ -511,7 +511,7 @@ $(document).ready(function () {
                                         $('#chatAudio')[0].play();
                                     }
                                     nMessages += 1;
-                                    var messageBox = $c.find('.messages')
+                                    var messageBox = $c.find('.messages');
                                     messageBox.append('<div><span class="peer">' + c.peer + '</span>: ' + nl2br(htmlEncode(msg)) + '</div>');
                                     messageBox.scrollTop(messageBox[0].scrollHeight);
                                     if (!isFocus) {
