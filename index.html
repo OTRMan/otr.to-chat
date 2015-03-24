@@ -429,7 +429,9 @@ $(document).ready(function () {
         }
         eachActiveConnection(function (c, $c) {
             if (c.label === 'chat') {
-                $c.find('.messages').append('<div><span class="you">You: </span>' + nl2br(htmlEncode(msg)) + '</div>');
+                var messageBox = $c.find('.messages');
+                messageBox.append('<div><span class="you">You: </span>' + nl2br(htmlEncode(msg)) + '</div>');
+                messageBox.scrollTop(messageBox[0].scrollHeight);
             }
         });
         $('#text').val('');
@@ -509,7 +511,9 @@ $(document).ready(function () {
                                         $('#chatAudio')[0].play();
                                     }
                                     nMessages += 1;
-                                    $c.find('.messages').append('<div><span class="peer">' + c.peer + '</span>: ' + nl2br(htmlEncode(msg)) + '</div>');
+                                    var messageBox = $c.find('.messages');
+                                    messageBox.append('<div><span class="peer">' + c.peer + '</span>: ' + nl2br(htmlEncode(msg)) + '</div>');
+                                    messageBox.scrollTop(messageBox[0].scrollHeight);
                                     if (!isFocus) {
                                         flashTitle("(" + nMessages + ") " + dTitle, 100000000);
                                     }

@@ -317,3 +317,7 @@ border: #D4D4D4 1px solid;}
 	max-width: 800px;
 width: 100%;  background-color: #F6F5F2;
 }
+.messages {
+    height: 200px;
+    overflow-y: auto;
+}
