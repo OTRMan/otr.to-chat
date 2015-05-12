@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title>p2p crypted chat OTR.to</title>
+<title>Browser p2p Chat with OTR Encryption</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta http-equiv="Content-Language" content="en-us">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="fancy.css" rel="stylesheet" type="text/css">
+<link href="f.css" rel="stylesheet" type="text/css">
+<link href="filedrop.css" rel="stylesheet" type="text/css">
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="/css/rrssb.css"/>
 
 
-<!-- Stylesheet required to power RRSSB. Copy this css file to your header -->
-<link rel="stylesheet" href="css/rrssb.css"/>
 
 <link rel="icon" type="image/png" href="ico.ico"/>
 <script type="text/javascript" src="js/vendor/jquery.1.10.2.min.js"></script>
@@ -19,6 +20,11 @@
 <script src="build/dep/eventemitter.js"></script>
 <script src="build/otr.js"></script>
 <script src="js/rrssb.min.js"></script>
+<script src="filedrop-min.js"></script>
+<script src="hoverIntent.min.js"></script>
+<script type="text/javascript" src="/rollups/aes.js"></script>
+<script type="text/javascript" src="/components/enc-base64-min.js"></script>
+<script type="text/javascript" src="/rollups/sha256.js"></script>
 <script>
 
 function SelectText(element) {
@@ -38,7 +44,33 @@ function SelectText(element) {
     }
 }
 
+function passwordGen(limit) {
+    limit = limit || 8;
 
+    var password = '';
+
+    var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:;><!"$%&/()=?^*#_-@+[]{}|,.';
+
+    var list = chars.split('');
+    var len = list.length, i = 0;
+
+    do {
+
+        i++;
+
+        var index = Math.floor(Math.random() * len);
+
+        password += list[index];
+
+    } while (i < limit);
+
+    return password;
+}
+
+function replaceURLWithHTMLLinks(text) {
+    var exp = /(\b(https?|ftp|file|mailto|bitcoin|callto|ed2k|git|gtalk|irc|irc6|ircs|jabber|magnet|market|skype|tel):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+    return text.replace(exp, "<a href='$1' target='_new'>$1</a>");
+}
 function nl2br(str, is_xhtml) {
     var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';
     return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
@@ -95,7 +127,16 @@ function snobuddyOn(data) {
                     $('#chatAudio')[0].play();
                 }
                 nMessages += 1;
-                $c.find('.messages').append('<div><span class="peer">' + c.peer + '</span>: ' + nl2br(htmlEncode(data)) + '</div>');
+                var subMsg = data.substr(0, 5);
+                //console.log(subMsg);
+
+                var messageBox = $c.find('.messages');
+                if(subMsg != '?MSG:') data = replaceURLWithHTMLLinks(nl2br(htmlEncode(data)));
+                 else {
+                    data = '<i class="fa fa-paperclip fa-2x"></i>&nbsp;'+data.substr(5);
+                }
+                messageBox.append('<div><span class="peer">' + c.peer + '</span>: ' + data + '</div>');
+                messageBox.scrollTop(messageBox[0].scrollHeight);
                 if (!isFocus) {
                     flashTitle("(" + nMessages + ") " + dTitle, 100000000);
                 }
@@ -173,9 +214,11 @@ function sbuddyOn(data) {
 
 
 if (window.location.hash) {
-    hash = window.location.hash.substring(1);
+    var hash = window.location.hash.substring(1);
+    hash = hash.substr(0,4);
+
 } else {
-    hash = '';
+    var hash = '';
 }
 
 
@@ -197,7 +240,8 @@ else {
 }
 //turn = {url: 'turn:turn@46.165.240.76:3479', credential: 'server'};
 //if (chrome1 >= 28) {
-turn = { url: 'turn:46.165.240.76:3478', credential: 'asperTinO1', username: 'otrto' };
+turn = { url: 'turn:46.165.240.76:3478', credential: 'asperTinO1', username: 'otrto' },
+{ url: 'turn:108.61.211.199:3478', credential: 'asperTinO1', username: 'otrto' };
 //}
 
 
@@ -212,21 +256,8 @@ var peer = new Peer('', {
                 $('.log').append(copy + '<br>');
             },
             config: {'iceServers': [
-                {url: 'stun:stun.l.google.com:19302'},
-                {url: 'stun:stun1.l.google.com:19302'},
-                {url: 'stun:stun2.l.google.com:19302'},
-                {url: 'stun:stun3.l.google.com:19302'},
-                {url: 'stun:stun4.l.google.com:19302'},
-                {url: 'stun:stun.ekiga.net'},
-                {url: 'stun:stun.ideasip.com'},
-                {url: 'stun:stun.rixtelecom.se'},
-                {url: 'stun:stun.schlund.de'},
-                {url: 'stun:stun.stunprotocol.org:3478'},
-                {url: 'stun:stun.voiparound.com'},
-                {url: 'stun:stun.voipbuster.com'},
-                {url: 'stun:stun.voipstunt.com'},
-                {url: 'stun:stun.voxgratia.org'},
                 {url: 'stun:46.165.240.76:3478'},
+                {url: 'stun:108.61.211.199:3478'},
                 turn
             ]}
         }
@@ -246,7 +277,7 @@ var isStarted = false;
 var dTitle = $(document).find("title").text();
 var nMessages = 0;
 var prevError = '';
-
+var isUpOn = false;
 
 //OTR
 
@@ -290,9 +321,7 @@ function connect(c) {
 
     chatbox.append(header);
     chatbox.append(messages);
-    $('#idid').hide();
-    $('#urlid').hide();
-    $('#connid').hide();
+	 $('#actions').hide();
     $('#connections').append(chatbox);
     $('#' + c.peer).hide();
     //$('#logg').append('isBuddy:'+isBuddy+'<br>'+'isBuddyOn:'+isBuddyOn+'<br>');
@@ -342,21 +371,129 @@ function connect(c) {
 }
 
 
+$(function() {
+    var tipLink,tBlock,tTitle,tipText,myTip;
+    $('a.linktip').wrap('<span class="tip" />'); 
+    $('span.tip').each(function(){
+        myTip = $(this),
+                tipLink = myTip.children('a'),
+                tBlock = myTip.children('span').length, 
+                tTitle = tipLink.attr('title') != 0, 
+                tipText = '<div id="zone9"><p class="legend">Click here or drag here your file.<br>File will be encrypted before upload.<br>For more information check<br>"Secure File Sharing"</p></div>'; 
+
+        tipLink.removeAttr("title"); 
+        if(tBlock === 0 && tTitle === true){myTip.append('<span class="answer">' + tipText + '</span>')};
+
+        var tip = myTip.find('span.answer , span.answer-left').hide(); 
+        tipLink.click(showTip).siblings('span').append('<b class="close">X</b>');
+
+
+        tip.on('click', '.close', function(){
+                    isUpOn = false;
+                    tip.fadeOut(200);}
+        );
+
+
+        function showTip(e){
+            var xM = e.pageX,
+            yM = e.pageY,
+            tipW = tip.width(),
+            tipH = tip.height(),
+            winW = $(window).width(),
+            winH = $(window).height(),
+            scrollwinH = $(window).scrollTop(),
+            scrollwinW = $(window).scrollLeft(),
+            curwinH = $(window).scrollTop() + $(window).height();
+            if ( xM > scrollwinW + tipW * 2 ) {tip.removeClass('answer').addClass('answer-left');}
+            else {tip.removeClass('answer-left').addClass('answer');}
+            if ( yM > scrollwinH + tipH && yM > curwinH / 2 ) {tip.addClass('a-top');}
+            else {tip.removeClass('a-top');}
+            tip.fadeIn(100).css('display','block');
+            e.preventDefault();
+            isUpOn = true;
+            var zonehtml = $('#zone9').html();
+            var options = {input: null, multiple: false};
+            var zone = new FileDrop('zone9', options);
+            zone.event('send', function (files) {
+                $('#zone9').html('<br><img src="loader.gif">');
+                files.each(function (file) {
+                    file.read({
+                        func: 'readAsArrayBuffer',
+                        onDone: function (str) {
+                            var isPass = passwordGen(12);
+                            var isBurn = 1;
+                            var isExpired = 86400;
+                            var binary = "";
+                            var bytes = new Uint8Array(str);
+                            var length = bytes.byteLength;
+                            for (var i = 0; i < length; i++) {
+                                binary += String.fromCharCode(bytes[i]);
+                            }
+                            var test1 = CryptoJS1.AES.encrypt(binary, isPass);
+                            var test2 = CryptoJS1.enc.Utf8.parse(test1);
+                            var test3 = CryptoJS1.enc.Base64.stringify(test2);
+
+                            $.post(
+                                    "/f/s.php",
+                                    {
+                                        toenc: test3,
+                                        burn: isBurn,
+                                        isdesc: '',
+                                        expired: isExpired,
+                                        isfile: file.name,
+                                        issize: file.size
+                                    }
+                            ).done(function (data) {
+                                        if (data != '') {
+                                            var words = CryptoJS1.enc.Utf8.parse(isPass);
+                                            var base64 = CryptoJS1.enc.Base64.stringify(words);
+                                            //$('#text').append(' https://otr.to/f/?' + data + '#' + base64+' ');
+                                            eachActiveConnection(function (c, $c) {
+                                                if (c.label === 'chat') {
+
+                                                    //console.log("YOU OTR:" + msg);
+                                                    var messageBox = $c.find('.messages');
+                                                    var msg = '<a href="https://otr.to/f/?' + data + '#' + base64+'" target="_blank">' + file.name + '</a>';
+                                                    c.send('?MSG:'+msg);
+                                                    messageBox.append('<div><span class="you">You: </span> <i class="fa fa-paperclip fa-2x"></i>&nbsp;' + msg + '</div>');
+                                                    messageBox.scrollTop(messageBox[0].scrollHeight);
+                                                    isUpOn = false;
+                                                    tip.fadeOut(200);
+                                                }
+                                            });
+                                        }
+                                        $('#zone9').html(zonehtml);
+                                    })
+                                    .error(function () {
+                                        alert("error");
+                                        $('#zone9').html(zonehtml);
+                                    });
+                        },
+                        onError: function (e) { alert('Terrible error!') }
+                    });
+                });
+            });
+        };
+    });
+});
+
 $(document).ready(function () {
-    //Check browser
+
+
     //var brows = util.browser;
     //$('#logg').append('Browser:'+brows+'<br>');
     if (util.supports.data) {
         //$('#logg').append('Your browser supports peeer-to-peer connection<br>');
     }
     else {
+	$('#logg').append('<h3>You have to use Firefox or Chrome for this website</h3>');
         $('#logg').append('<font color="red"><strong>Error: Your browser does not support peeer-to-peer connection</strong></font><br>');
     }
 
     // Connect to a peer
     $('#connect').on("click", function () {
         $('.filler').html('<img src="loader.gif"><br> connecting...');
-        requestedPeer = $('#rid').val();
+        var requestedPeer = $('#rid').val();
         if (connectedPeers == 0 && !isConnected) {
             // Create 2 connections, one labelled chat and another labelled file.
             var c = peer.connect(requestedPeer, {
@@ -381,9 +518,8 @@ $(document).ready(function () {
             //buddy.sendMsg("hi i want to chat with you!");
             isConnected = true;
             connectedPeers = 1;
-            $('#idid').hide();
-            $('#urlid').hide();
-            $('#connid').hide();
+			$('#actions').hide();
+         
         }
     });
 
@@ -429,7 +565,10 @@ $(document).ready(function () {
         }
         eachActiveConnection(function (c, $c) {
             if (c.label === 'chat') {
-                $c.find('.messages').append('<div><span class="you">You: </span>' + nl2br(htmlEncode(msg)) + '</div>');
+                //$c.find('.messages').append('<div><span class="you">You: </span>' + replaceURLWithHTMLLinks(nl2br(htmlEncode(msg))) + '</div>');
+                var messageBox = $c.find('.messages');
+                messageBox.append('<div><span class="you">You: </span>' + replaceURLWithHTMLLinks(nl2br(htmlEncode(msg))) + '</div>');
+                messageBox.scrollTop(messageBox[0].scrollHeight);
             }
         });
         $('#text').val('');
@@ -509,7 +648,14 @@ $(document).ready(function () {
                                         $('#chatAudio')[0].play();
                                     }
                                     nMessages += 1;
-                                    $c.find('.messages').append('<div><span class="peer">' + c.peer + '</span>: ' + nl2br(htmlEncode(msg)) + '</div>');
+                                    //$c.find('.messages').append('<div><span class="peer">' + c.peer + '</span>: ' + replaceURLWithHTMLLinks(nl2br(htmlEncode(msg))) + '</div>');
+                                    var messageBox = $c.find('.messages');
+                                    if(subMsg != '?MSG:') msg = replaceURLWithHTMLLinks(nl2br(htmlEncode(msg)));
+                                    else {
+                                        msg = '<i class="fa fa-paperclip fa-2x"></i>&nbsp;'+msg.substr(5);
+                                    }
+                                    messageBox.append('<div><span class="peer">' + c.peer + '</span>: ' + msg + '</div>');
+                                    messageBox.scrollTop(messageBox[0].scrollHeight);
                                     if (!isFocus) {
                                         flashTitle("(" + nMessages + ") " + dTitle, 100000000);
                                     }
@@ -580,11 +726,6 @@ $(document).ready(function () {
             .focus(function () {
                 $(this).css("background", "#fff")
             })
-            .blur(function () {
-                if ($(this)[0].value == '') {
-                    $(this).css("background", "url(be.jpg) center center no-repeat")
-                }
-            });
 
 });
 
@@ -599,118 +740,49 @@ window.onunload = window.onbeforeunload = function (e) {
 </script>
 </head>
 
-<body> <br>
-<br>
-<center><ul class="tabs">
- <li class="ttab logo"><img src="logo.png"> </li>
-    <li class="ttab selected"><a class="non" href="https://otr.to/">Secure p2p Chat</a></li>
-    <li class="ttab"><a class="non" href="https://otr.to/s/">Self Destructing Message</a></li>
-    <li class="ttab"><a  class="non" href="https://otr.to/contact.html">Contact Us</a></li>
+<body><div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.3";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<div class="tabl"><div class="Row"><div class="menu"><img src="log.png" class="log"> 
+<table class="bm">
+<tr><td class="select" ></td><td><a href="https://otr.to/"><i class="fa fa-comment-o fa-2x"></i></a></td><td><a class="non" href="https://otr.to/">Secure p2p Chat</a></td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;</td><td><a   href="https://otr.to/s/"><i class="fa fa-file-text-o fa-2x"></i></a></td><td><a class="non" href="https://otr.to/s/">Self Destructing Message</a></td></tr>
+<tr><td></td><td><a   href="https://otr.to/f/"><i class="fa fa-cloud-upload fa-2x"></i></a></td><td><a class="non" href="https://otr.to/f/">Secure File Sharing </a></td></tr>
+<tr><td></td><td><a    href="https://otr.to/contact.html"><i class="fa fa-envelope-o fa-2x"></i></a></td><td><a  class="non" href="https://otr.to/contact.html">Contact Us</a></td></tr>
+</table>
 
-</ul><div class="line">  <br> <br></div><br><br>
 
-    <div id="actions"><span id="connid">To start chat enter someone else's id: <input id="rid" placeholder="someone"
-                                                                                      type="text" size="7"><input
-            class="button" value="Connect" id="connect" type="button">&nbsp;&nbsp;</span>
-        <br> <span id="idid">or send your id:<span id="pid"></span> &nbsp;</span>
-        <span id="urlid">or url:<span id="purl"></span> &nbsp;&nbsp;</span></div>
+</div>
+<div class="ri">
+    <div id="actions" class="tp"><br><br>
+	 <span id="urlid" >to start chat send url:<span id="purl"></span></span><br>
+        <span id="idid">or send your id:<span id="pid"></span> &nbsp;</span>
+        <br>
+		<span id="connid"> or enter someone else's id: <input id="rid" placeholder="someone" type="text" size="7">
+	<input class="button" value="Connect" id="connect" type="button">&nbsp;&nbsp;</span>
+		</div>
 
-    <div id="wrap">
+
         <div id="connections"><span class="filler"><div class="about">
-            <ul>
+		<h1>How OTR Encrypted Chat Works:</h1>
+          <ul>
                 <li>Otr.to - p2p chat, that mean you communicate directly, no logs saved on server</li>
                 <li>Otr.to absolutely anonymous, registration free</li>
                 <li>Otr.to browser based, that mean you don't need to install or ask somebody to install software</li>
                 <li>Otr.to use OTR (Off-the-Record Messaging) - most secure cryptographic protocol</li>
-                <li>Otr.to written in JavaScript, that mean you can check how it works</li>
-            </ul>
-        </div><br></span>
+                <li>Otr.to <a href ="https://github.com/OTRMan/otr.to-chat">Open-source</a> and written in JavaScript, that mean you can check how it works</li>
+            </ul> <center><img style="max-width:100%;height:auto;" src="sig.gif "></center> 
+			<p>We believe that everyone has the right to communicate privately. If you agree, share with others:</p>
 
-            <div id="logg"></div>
-        </div>
-        <form id="send" style="display:none;">
-            <div id="tarea">
-                <textarea id="text" style="width:100%; height:80px; max-width: 500px;" placeholder="type your message here..."></textarea>
-            </div>
-            <br>
-            <table style="width:400px">
-                <tr>
-                    <td>sound<br>
-
-                        <div class="onoffswitch" id="ae">
-                            <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="sound" checked>
-                            <label class="onoffswitch-label" for="sound">
-                                <span class="onoffswitch-inner"></span>
-                                <span class="onoffswitch-switch"></span>
-                            </label>
-                        </div>
-                    </td>
-                    <td>encryption<br>
-
-                        <div class="onoffswitch" id="ae1">
-                            <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="otron">
-                            <label class="onoffswitch-label" for="otron">
-                                <span class="onoffswitch-inner"></span>
-                                <span class="onoffswitch-switch"></span>
-                            </label>
-                        </div>
-                    </td>
-                    <td>
-                        <input type="button" type="submit" value="open new chat"
-                               onClick="window.open('https://otr.to/');">
-                    </td>
-                    <td><input class="button" value="Send" type="submit" id="bsend"></td>
-                </tr>
-                <tr>
-                    <td>&nbsp;</td>
-                    <td><img src="486.gif" style="display:none;" id="waitotr"></td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                </tr>
-            </table>
-			<p style="gray"> enter - send message | ctr+enter - new line</p>
-        </form>
-        <br>
-
-        <div class="clear"></div>
-</center>
-<div id="content">
-    <div id="auth" style="display:none;">
-
-        <table style="width:600px">
-            <tr>
-                <td>Your Fingerprint:</td>
-                <td><span id="yfinger"></span></td>
-            </tr>
-            <tr>
-                <td>Buddy Fingerprint:</td>
-                <td><span id="bfinger"></span></td>
-            </tr>
-        </table>
-    </div>
-
-</div>
-
-</div>
-
-
-</div>
-<audio id="chatAudio">
-    <source src="waterdrop.mp3" type="audio/mpeg">
-</audio>
-
- </center>
-<div id="footer">
-    <center>
-        <div style="max-width:700px">
-            <p><a href=about.html>about otr.to</a> &nbsp;&nbsp; <a href=contact.html>contact us</a> &nbsp; if u like
-                otr.to, share it: </p>
-
-            <ul class="rrssb-buttons clearfix">
+			 <ul class="rrssb-buttons clearfix">
                 <li class="rrssb-email">
                     <a href="mailto:?subject=&body=:%20http%3A%2F%2Fotr.to%2F" target="_blank" title="Email"
-                       onclick="window.open('mailto:?subject=' + encodeURIComponent(document.title) + '&body=' +  encodeURIComponent(document.URL)); return false;"><i
-                            id="social" class="fa fa-envelope-square fa-3x social-em"></i>
+                       onclick="window.open('mailto:?subject=' + encodeURIComponent(document.title) + '&body=' +  encodeURIComponent(document.URL)); return false;">
             <span class="rrssb-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve"><g><path d="M20.111 26.147c-2.336 1.051-4.361 1.401-7.125 1.401c-6.462 0-12.146-4.633-12.146-12.265 c0-7.94 5.762-14.833 14.561-14.833c6.853 0 11.8 4.7 11.8 11.252c0 5.684-3.194 9.265-7.399 9.3 c-1.829 0-3.153-0.934-3.347-2.997h-0.077c-1.208 1.986-2.96 2.997-5.023 2.997c-2.532 0-4.361-1.868-4.361-5.062 c0-4.749 3.504-9.071 9.111-9.071c1.713 0 3.7 0.4 4.6 0.973l-1.169 7.203c-0.388 2.298-0.116 3.3 1 3.4 c1.673 0 3.773-2.102 3.773-6.58c0-5.061-3.27-8.994-9.303-8.994c-5.957 0-11.175 4.673-11.175 12.1 c0 6.5 4.2 10.2 10 10.201c1.986 0 4.089-0.43 5.646-1.245L20.111 26.147z M16.646 10.1 c-0.311-0.078-0.701-0.155-1.207-0.155c-2.571 0-4.595 2.53-4.595 5.529c0 1.5 0.7 2.4 1.9 2.4 c1.441 0 2.959-1.828 3.311-4.087L16.646 10.068z"/></g></svg>
             </span>
@@ -718,7 +790,7 @@ window.onunload = window.onbeforeunload = function (e) {
                     </a>
                 </li>
                 <li class="rrssb-facebook">
-                    <a href="https:/<a href=" https://www.facebook.com/sharer/sharer.php?u=http%3A%2F%2Fotr.to%2F&t="
+                   <a href=" https://www.facebook.com/sharer/sharer.php?u=http%3A%2F%2Fotr.to%2F&t="
                     target="_blank" onclick="window.open('https://www.facebook.com/sharer/sharer.php?u=' +
                     encodeURIComponent(document.URL) + '&t=' + encodeURIComponent(document.URL)); return false;">
 
@@ -754,8 +826,7 @@ window.onunload = window.onbeforeunload = function (e) {
                     <!-- Replace href with your meta and URL information.  -->
                     <a href="https://plus.google.com/share?url=http%3A%2F%2Fotr.to%2F" target="_blank"
                        title="Share on Google+"
-                       onclick="window.open('https://plus.google.com/share?url=' + encodeURIComponent(document.URL)); return false;"><i
-                            id="social" class="fa fa-google-plus-square fa-3x social-gp"></i>
+                       onclick="window.open('https://plus.google.com/share?url=' + encodeURIComponent(document.URL)); return false;">
 	                            <span class="rrssb-icon">
                                 <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="28px" height="28px" viewBox="0 0 28 28" enable-background="new 0 0 28 28" xml:space="preserve">
                                     <g>
@@ -780,42 +851,80 @@ window.onunload = window.onbeforeunload = function (e) {
                     </a>
                 </li>
             </ul>
+			
+        </div><br></span>
+
+            <div id="logg"></div>
         </div>
-    </center>
+        <form id="send" style="display:none;">
+            <div id="tarea">
+                <textarea id="text" class="chat" placeholder="Type your message here. Enter - send message. Ctrl+enter - new line"></textarea>
+            </div>
+            <br>
+            <table class="swTab">
+                <tr>
+                    <td>sound<br>
 
+                        <div class="onoffswitch" id="ae">
+                            <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="sound" checked>
+                            <label class="onoffswitch-label" for="sound">
+                                <span class="onoffswitch-inner"></span>
+                                <span class="onoffswitch-switch"></span>
+                            </label>
+                        </div>
+                    </td>
+                    <td>encryption<br>
+
+                        <div class="onoffswitch" id="ae1">
+                            <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="otron">
+                            <label class="onoffswitch-label" for="otron">
+                                <span class="onoffswitch-inner"></span>
+                                <span class="onoffswitch-switch"></span>
+                            </label>
+                        </div>
+                    </td>
+                    <td>
+                        <input type="button" type="submit" value="open new chat"
+                               onClick="window.open('https://otr.to/');">
+                    </td>
+                    <td>
+                        <a class="linktip" href="#" title="Send encrypted file"><i class="fa fa-paperclip fa-2x" id="paperclip"></i></a>
+                    </td>
+                    <td><input class="button" value="Send" type="submit" id="bsend"></td>
+                </tr>
+                <tr>
+                    <td>&nbsp;</td>
+                    <td><img src="486.gif" style="display:none;" id="waitotr"></td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+            </table>
+		
+        </form>
+        <br>
+</div>
+<audio id="chatAudio">
+    <source src="waterdrop.mp3" type="audio/mpeg">
+</audio>
+
+ </center>
 </div>
 </div>
-<!-- Yandex.Metrika counter -->
+<!-- Piwik -->
 <script type="text/javascript">
-    (function (d, w, c) {
-        (w[c] = w[c] || []).push(function () {
-            try {
-                w.yaCounter28005159 = new Ya.Metrika({id: 28005159,
-                    trackLinks: true,
-                    accurateTrackBounce: true});
-            } catch (e) {
-            }
-        });
-
-        var n = d.getElementsByTagName("script")[0],
-                s = d.createElement("script"),
-                f = function () {
-                    n.parentNode.insertBefore(s, n);
-                };
-        s.type = "text/javascript";
-        s.async = true;
-        s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js";
-
-        if (w.opera == "[object Opera]") {
-            d.addEventListener("DOMContentLoaded", f, false);
-        } else {
-            f();
-        }
-    })(document, window, "yandex_metrika_callbacks");
+  var _paq = _paq || [];
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//otr.to/p/";
+    _paq.push(['setTrackerUrl', u+'piwik.php']);
+    _paq.push(['setSiteId', 1]);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
+  })();
 </script>
-<noscript>
-    <div><img src="//mc.yandex.ru/watch/28005159" style="position:absolute; left:-9999px;" alt=""/></div>
-</noscript>
-<!-- /Yandex.Metrika counter -->
+<noscript><p><img src="//otr.to/p/piwik.php?idsite=1" style="border:0;" alt="" /></p></noscript>
+<!-- End Piwik Code -->
+
 </body>
 </html>

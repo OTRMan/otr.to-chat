@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Self Destructing Encrypted File Upload</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="Content-Language" content="en-us">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="/f.css" rel="stylesheet" type="text/css">
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+<link rel="icon" type="image/png" href="/ico.ico"/>
+<script type="text/javascript" src="/js/vendor/jquery.1.10.2.min.js"></script>
+<script type="text/javascript" src="/rollups/aes.js"></script>
+<script type="text/javascript" src="/components/enc-base64-min.js"></script>
+<script type="text/javascript" src="/rollups/sha256.js"></script>
+<script>
+var file = null;
+var dfile = null;
+var fname = null;
+var isFile = false;
+
+function SelectText(element) {
+    var doc = document;
+    var text = doc.getElementById(element);
+    if (doc.body.createTextRange) { // ms
+        var range = doc.body.createTextRange();
+        range.moveToElementText(text);
+        range.select();
+    } else if (window.getSelection) {
+        var selection = window.getSelection();
+        var range = doc.createRange();
+        range.selectNodeContents(text);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+    }
+}
+function passwordGen(limit) {
+    limit = limit || 8;
+
+    var password = '';
+
+    var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:;><!"$%&/()=?^*#_-@+[]{}|,.';
+
+    var list = chars.split('');
+    var len = list.length, i = 0;
+
+    do {
+
+        i++;
+
+        var index = Math.floor(Math.random() * len);
+
+        password += list[index];
+
+    } while (i < limit);
+
+    return password;
+}
+$(document).ready(function () {
+    $('#encrypt-input').on('change', function(e){
+
+        // Has a file been selected?
+
+        if(e.target.files.length!=1){
+            alert('Please select a file to encrypt!');
+            return false;
+        }
+
+        file = e.target.files[0];
+
+        if(file.size > 1024*1024){
+            alert('Please choose files smaller than 1mb, otherwise you may crash your browser. \nThis is a known issue. See the tutorial.');
+            return false;
+        }
+
+        isFile = true;
+    });
+    $('#purl').click(function() {
+        SelectText("purl");
+    });
+    $('#purl1').click(function() {
+        SelectText("purl1");
+    });
+    $('#passw').click(function() {
+        SelectText("passw");
+    });
+    var askPos = window.location.href.indexOf('?');
+
+    if (askPos > 0) {
+        var hashes = window.location.href.slice(askPos + 1).split('#');
+
+        if (hashes[0] != '') {
+
+            $('#wrap1').html('<img src="/loader.gif">');
+            $.post(
+                    "s.php",
+                    {
+                        id: hashes[0]
+                    }
+            ).done(function (data) {
+                        $('#wrap1').hide('slow');
+                        if (data != '') {
+                            if (hashes[1]) {
+                                var parsedWordArray = CryptoJS1.enc.Base64.parse(hashes[1]);
+                                var isPass = parsedWordArray.toString(CryptoJS1.enc.Utf8);
+                                $('#password1').val(isPass);
+                            }
+                            var newData = data.split("[:++:]");
+                            $('#pid').text(newData[0]+" "+newData[1]+" kb\r\nDescription:\r\n"+newData[2]);
+                            $('#content1').show('slow');
+                            dfile = newData[3];
+                            fname = newData[0];
+                        }
+                    })
+                    .error(function () {
+                        alert("error");
+                    });
+        }
+    }
+    $('#decode').click(function () {
+        var isPass = $('#password1').val();
+
+        var unBase = CryptoJS1.enc.Base64.parse(dfile);
+
+        var textString = unBase.toString(CryptoJS1.enc.Utf8);
+        var decodeTxt = CryptoJS1.AES.decrypt(textString, isPass);
+
+        var toStr = decodeTxt.toString(CryptoJS1.enc.Utf8);
+        var byteArray = new Uint8Array(toStr.length);
+        for (var i = 0; i < toStr.length; i++) {
+            byteArray[i] = toStr.charCodeAt(i) & 0xff;
+        }
+        var my_blob = new Blob([byteArray], {type: 'application/octet-stream'});
+
+
+        var pom = document.createElement('a');
+        pom.href = window.URL.createObjectURL(my_blob);
+        pom.dataset.downloadurl = ['application/octet-stream', pom.download, pom.href].join(':');
+        pom.download = fname;
+
+
+        pom.style.display = 'none';
+        document.body.appendChild(pom);
+
+        pom.click();
+
+        document.body.removeChild(pom);
+    });
+    $('#regen').click(function () {
+        $('#password').val(passwordGen(12));
+    });
+    $('#encrypt').click(function () {
+        var isPass = '';
+        $('#encrypt').attr("disabled", true);
+        isPass = $('#password').val();
+        var isBurn = $('#burn').prop('checked');
+        var isExpired = $('#expired').val();
+        isExpired = isExpired * 60;
+        var isDesc = $('#desc').val();
+        if(isFile) {
+            $('#wrap1').html('<img src="/loader.gif">');
+            var reader = new FileReader();
+            reader.onload = function(e){
+                var binary = "";
+                var bytes = new Uint8Array(e.target.result);
+                var length = bytes.byteLength;
+                for (var i = 0; i < length; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                var test1 = CryptoJS1.AES.encrypt(binary, isPass);
+                var test2 = CryptoJS1.enc.Utf8.parse(test1);
+                var test3 = CryptoJS1.enc.Base64.stringify(test2);
+
+
+                $.post(
+                        "s.php",
+                        {
+                            toenc: test3,
+                            burn: isBurn,
+                            expired: isExpired,
+                            isdesc: isDesc,
+                            isfile: file.name,
+                            issize: file.size
+                        }
+                ).done(function (data) {
+                            if (data != '') {
+                                var urlsTxt = '';
+                                var urlsWoPass = '';
+                                $('#wrap1').hide('slow');
+                                var words = CryptoJS1.enc.Utf8.parse(isPass);
+                                var base64 = CryptoJS1.enc.Base64.stringify(words);
+                                urlsTxt += 'https://otr.to/f/?' + data + '#' + base64 + "<br>";
+                                urlsWoPass += 'https://otr.to/f/?' + data + "<br>";
+                                $('#purl').html(urlsTxt);
+                                $('#purl1').html(urlsWoPass);
+                                $('#passw').html(isPass);
+                                $('#content').show('slow');
+                            }
+                        })
+                        .error(function () {
+                            alert("error");
+                        });
+            }
+            reader.readAsArrayBuffer(file);
+        }
+
+    });
+    $('#password').val(passwordGen(12));
+});
+</script>
+
+<script type="text/javascript">
+    animatedcollapse.addDiv('jason', 'fade=1,height=520px')
+    animatedcollapse.init()
+</script>
+</head>
+
+<div class="tabl"><div class="Row"><div class="menu"><img src="/log.png" class="log"> 
+<table class="bm">
+<tr><td></td><td><a href="https://otr.to/"><i class="fa fa-comment-o fa-2x"></i></a></td><td><a class="non" href="https://otr.to/">Secure p2p Chat</a></td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;</td><td><a   href="https://otr.to/s/"><i class="fa fa-file-text-o fa-2x"></i></a></td><td><a class="non" href="https://otr.to/s/">Self Destructing Message</a></td></tr>
+<tr><td class="select"></td><td><a   href="https://otr.to/f/"><i class="fa fa-cloud-upload fa-2x"></i></a></td><td><a class="non" href="https://otr.to/f/">Secure File Sharing </a></td></tr>
+<tr><td></td><td><a    href="https://otr.to/contact.html"><i class="fa fa-envelope-o fa-2x"></i></a></td><td><a  class="non" href="https://otr.to/contact.html">Contact Us</a></td></tr>
+</table>
+
+
+
+</div>
+<div class="ri">
+  <br>
+<br>
+<center>
+
+
+    <div id="wrap">
+        <div id="wrap1">
+            <form id="send">
+			<span><b> Choose file</b></span>
+
+                <div id="zone9"><p class="legend">Click here or drag here your file.<br>File will be encrypted before upload.</p></div><br><br><br>
+                <span class="ab">  Delete after downloading <input type="checkbox" name="burn" value="1" id="burn"
+                                                               checked> </span>
+            <span class="ab">   Expiration time:<select name="expired" id="expired">
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="30">30 min</option>
+                <option value="60">1 hour</option>
+                <option value="1440">1 day</option>
+                <option value="10080" selected>1 week</option>
+                <option value="43200">1 month</option>
+                <option value="518400">1 year</option>
+            </select> </span>
+                <br> <br> 
+                <span class="ab">
+                    Description (optional)<input type="text" id="desc" size="35">
+                </span>
+                <br><br>
+                encryption key:<input type="text" name="password" size="30" value="" id="password"> <input value="generate new"
+                                                                                                     type="button"
+                                                                                                     id="regen"> &nbsp
+                <input class="button" value="encrypt and upload" type="button" id="encrypt">
+            </form>
+<br><br>
+            <div class="about">
+               
+     <h1>How File Share Encryption Works:</h1> 
+              
+                    <span> Upload file and get link to it. When link get opened, file will self-destruct.
+                     <br> Otr.to encrypt files before upload, on browser side, using Javascript with AES256 algorithm. Key (password) will never go to the server.
+                     Server stores only encrypted data. You can send password with link, or separate.</span><BR><BR><BR>
+                    <center><img src="/sigF.gif"></center>
+              
+
+                <br>
+            </div>
+        </div>
+        <div id="content" style="display: none">
+
+            url:
+            <span id="purl" style="text-align: left"> </span> <br>
+            url  without password:
+        <span id="purl1"
+              style="text-align: left;display: inline-block;padding: 0px;padding-left: 3px;padding-right: 3px;margin:4px;border: 1px solid #ccc;line-height: 1.3em;background-color: #fff">
+
+        </span>
+            password:
+        <span id="passw"
+              style="text-align: left;display: inline-block;padding: 0px;padding-left: 3px;padding-right: 3px;margin:4px;border: 1px solid #ccc;line-height: 1.3em;background-color: #fff">
+        </span>
+        </div>
+        <div id="content1" style="display: none">
+           <br> <br><br>Enter Password:
+            <input type="text" name="password1" id="password1"> <input class="button" value="Decode and Download File"
+                                                                       type="button" id="decode"><br>
+        <span id="pid" class="mess" style="max-width:700px">
+                       
+        </span><br>
+            <input type="button" type="submit" value="start encrypted chat"
+                   onClick="window.open('https://otr.to/');">
+          
+        </div>
+    </div>
+</center>
+</div>
+
+</div>
+</div>
+<!-- Piwik -->
+<script type="text/javascript">
+  var _paq = _paq || [];
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//otr.to/p/";
+    _paq.push(['setTrackerUrl', u+'piwik.php']);
+    _paq.push(['setSiteId', 1]);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<noscript><p><img src="//otr.to/p/piwik.php?idsite=1" style="border:0;" alt="" /></p></noscript>
+<!-- End Piwik Code -->
+
+</body>
+</html>
