@@ -20,7 +20,11 @@ var file = null;
 var dfile = null;
 var fname = null;
 var isFile = false;
-
+function htmlEncode(value) {
+    //create a in-memory div, set it's inner text(which jQuery automatically encodes)
+    //then grab the encoded contents back out.  The div never exists on the page.
+    return $('<div/>').text(value).html();
+}
 function SelectText(element) {
     var doc = document;
     var text = doc.getElementById(element);
@@ -108,7 +112,7 @@ $(document).ready(function () {
                                 $('#password1').val(isPass);
                             }
                             var newData = data.split("[:++:]");
-                            $('#pid').text(newData[0]+" "+newData[1]+" kb\r\nDescription:\r\n"+newData[2]);
+                            $('#pid').html(htmlEncode(newData[0])+"<br>"+newData[1]+" kb<br><br>"+htmlEncode(newData[2]));
                             $('#content1').show('slow');
                             dfile = newData[3];
                             fname = newData[0];
@@ -301,7 +305,7 @@ $(document).ready(function () {
                     <br> <br><br>Enter Password:
                     <input type="text" name="password1" id="password1"> <input class="button" value="Decode and Download File"
                                                                                type="button" id="decode"><br>
-        <span id="pid" class="mess" style="max-width:700px">
+        <div id="pid" class="mess" style="max-width:700px">
                        
         </span><br>
                     <input type="button" type="submit" value="start encrypted chat"
